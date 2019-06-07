@@ -15,6 +15,8 @@ Unlike [Chef](https://www.chef.io/) or [Ansible](http://www.ansible.com/) that t
 
 Much of the code is also heavily influenced by [Fabtools](https://github.com/fabtools/fabtools), another Fabric-based toolkit.
 
+Python 2.7 is supported through version 0.9.54.
+
 Installation
 ------------
 
