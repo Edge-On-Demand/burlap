@@ -60,7 +60,7 @@ install:
 -   sudo rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
 
 -   sudo apt-get -yq update
--   sudo apt-get -yq install python3.7 python3.7-dev
+-   sudo apt-get -yq install python3.7 python3.7-dev python3-pip
 -   sudo apt-get -yq purge postgr*
 -   sudo apt-get -yq purge virtualbox*
 # The Oracle Java install routinely times out, and we're not using it, so uninstall it.
@@ -74,7 +74,7 @@ install:
 -   sudo apt-get -o Dpkg::Options::="--force-confnew" --allow-downgrades --allow-remove-essential --allow-change-held-packages -fuy --allow-unauthenticated dist-upgrade
 -   sudo apt-get -yq install build-essential
 -   sudo apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
--   sudo pip install -r requirements-test.txt
+-   sudo pip3 install -r requirements-test.txt
 
 before_script:
 # Allow us to SSH passwordless to localhost
@@ -87,7 +87,7 @@ before_script:
 script:
 -   set -e
 -   ./pep8.sh
--   tox -c tox-travis.ini -e py27-no_vagrant
+#-   tox -c tox-travis.ini -e py27-no_vagrant
 -   tox -c tox-travis.ini -e py37-no_vagrant
 #-   tox -c tox-travis.ini
 #-   tox -c tox-travis.ini -e py27 -- -s burlap/tests/functional_tests/test_js.py::JSTests::test_jshint
