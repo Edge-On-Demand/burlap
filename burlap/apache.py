@@ -38,43 +38,25 @@ class ApacheSatchel(ServiceSatchel):
 
         if sys.version_info.major == 3:
             # Note that for Python 3, libapache2-mod-wsgi may need to be removed if installed.
-            mod_wsgi = 'libapache2-mod-wsgi-py3'
+            mod_lst.extend(['apache2-dev', 'libapache2-mod-wsgi-py3'])
         else:
-            mod_wsgi = 'libapache2-mod-wsgi'
+            mod_lst.append('libapache2-mod-wsgi')
 
         return {
             FEDORA: ['httpd'] + mod_lst,
-            UBUNTU: ['apache2', mod_wsgi] + mod_lst,
-            (UBUNTU, '12.04'): ['apache2', mod_wsgi] + mod_lst,
-            (UBUNTU, '12.10'): ['apache2', mod_wsgi] + mod_lst,
-            (UBUNTU, '14.04'): ['apache2', mod_wsgi, 'apache2-utils'] + mod_lst,
-            (UBUNTU, '14.10'): ['apache2', mod_wsgi, 'apache2-utils'] + mod_lst,
-            (UBUNTU, '16.04'): ['apache2', mod_wsgi, 'apache2-utils'] + mod_lst,
-            (UBUNTU, '16.10'): ['apache2', mod_wsgi, 'apache2-utils'] + mod_lst,
-            (UBUNTU, '16.10'): ['apache2', mod_wsgi, 'apache2-utils'] + mod_lst,
+            UBUNTU: ['apache2', 'apache2-utils'] + mod_lst,
+            (UBUNTU, '12.04'): ['apache2'] + mod_lst,
+            (UBUNTU, '12.10'): ['apache2'] + mod_lst,
+            (UBUNTU, '14.04'): ['apache2', 'apache2-utils'] + mod_lst,
+            (UBUNTU, '14.10'): ['apache2', 'apache2-utils'] + mod_lst,
+            (UBUNTU, '16.04'): ['apache2', 'apache2-utils'] + mod_lst,
+            (UBUNTU, '16.10'): ['apache2', 'apache2-utils'] + mod_lst,
+            (UBUNTU, '16.10'): ['apache2', 'apache2-utils'] + mod_lst,
         }
 
     def set_defaults(self):
 
         self.env.service_commands = {
-            #             START:{
-            #                 UBUNTU: 'service network-manager start',
-            #             },
-            #             STOP:{
-            #                 UBUNTU: 'service network-manager stop',
-            #             },
-            #             DISABLE:{
-            #                 UBUNTU: 'chkconfig network-manager off',
-            #             },
-            #             ENABLE:{
-            #                 UBUNTU: 'chkconfig network-manager on',
-            #             },
-            #             RESTART:{
-            #                 UBUNTU: 'service network-manager restart',
-            #             },
-            #             STATUS:{
-            #                 UBUNTU: 'service network-manager status',
-            #             },
             START: {
                 FEDORA: 'systemctl start httpd.service',
                 UBUNTU: 'service apache2 start',

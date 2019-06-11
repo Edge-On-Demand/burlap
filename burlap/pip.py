@@ -1,6 +1,5 @@
 from __future__ import absolute_import, print_function
 
-import sys
 from pprint import pprint
 
 import six
@@ -39,12 +38,14 @@ class PIPSatchel(Satchel):
         self.env.virtualenv_dir = '.env'
         self.env.requirements = 'pip-requirements.txt'
         self.env.quiet_flag = ' -q '
+        self.env.python_version = '3.7'
 
     @task
     def has_pip(self):
         r = self.local_renderer
         with self.settings(warn_only=True):
-            ret = (r.run_or_local('which pip') or '').strip()
+            cmd = f'which pip{self.env.python_version}'
+            ret = (r.run_or_local(cmd) or '').strip()
             if ret:
                 print('Pip is installed at {}.'.format(ret))
             else:
@@ -70,13 +71,12 @@ class PIPSatchel(Satchel):
                 r.sudo('python /tmp/ez_setup.py -U setuptools')
             r.sudo('easy_install -U pip')
         elif r.env.bootstrap_method == PYTHON_PIP:
-            r.sudo('apt-get install -y {}-pip'.format('python3' if sys.version_info.major == 3 else 'python'))
+            r.sudo('apt-get install -y python3-pip')
         else:
             raise NotImplementedError('Unknown pip bootstrap method: %s' % r.env.bootstrap_method)
 
         # Upgrade pip, virtualenv
-        r.run_or_local('pip {quiet_flag} install --upgrade pip')
-        r.run_or_local('pip {quiet_flag} install --upgrade virtualenv')
+        r.run_or_local(f'python{self.env.python_version} -m pip install pip')
 
     @task
     def clean_virtualenv(self, virtualenv_dir=None):
@@ -129,7 +129,7 @@ class PIPSatchel(Satchel):
 
         print('Creating new virtual environment...')
         with self.settings(warn_only=True):
-            cmd = '[ ! -d {virtualenv_dir} ] && virtualenv --no-site-packages {virtualenv_dir} || true'
+            cmd = f'python{self.env.python_version} -m venv {{virtualenv_dir}}'
             r.run_or_local(cmd)
 
     def get_combined_requirements(self, requirements=None):
@@ -206,7 +206,6 @@ class PIPSatchel(Satchel):
 
     @task(precursors=['packager', 'user'])
     def configure(self, *args, **kwargs):
-
         clean = int(kwargs.pop('clean', 0))
         if clean:
             self.clean_virtualenv()
