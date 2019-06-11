@@ -1602,7 +1602,6 @@ class Service(object):
             self.stop()
             self.start()
 
-
     def reload(self):
         s = {'warn_only':True} if self.ignore_errors else {}
         with settings(**s):
