@@ -108,7 +108,6 @@ class ApacheSatchel(ServiceSatchel):
         self.env.enforce_subdomain = True
 
         self.env.ssl = True
-        self.env.ssl_on_http = False  # Use SSL on port 80, as with a load balancer
         self.env.ssl_chmod = 440
         self.env.ssl_port = 443
 
