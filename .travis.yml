@@ -60,7 +60,7 @@ install:
 -   sudo rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
 
 -   sudo apt-get -yq update
--   sudo apt-get -yq install python3.7 python3.7-dev python3-pip
+-   sudo apt-get -yq install python3.7 python3.7-dev python3-pip python3-setuptools
 -   sudo apt-get -yq purge postgr*
 -   sudo apt-get -yq purge virtualbox*
 # The Oracle Java install routinely times out, and we're not using it, so uninstall it.
