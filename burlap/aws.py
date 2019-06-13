@@ -75,7 +75,7 @@ class EC2MonitorSatchel(Satchel):
     @task
     def clear_host_data_cache(self):
         """
-        Remove cached instance data in /tmp/ that may cause instance_id conflicts when an EBS volume is cloned.
+        Remove cached instance attribute data that may cause instance_id conflicts when an EBS volume is cloned.
         """
         r = self.local_renderer
         host_data_cache_path = '/var/tmp/aws-mon/'  # Set in CloudWatchClient::$meta_data_loc
