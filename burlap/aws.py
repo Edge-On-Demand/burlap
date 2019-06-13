@@ -73,6 +73,16 @@ class EC2MonitorSatchel(Satchel):
         return 'cd {install_path}; export AWS_CREDENTIAL_FILE={awscreds_install_path}; ./mon-put-instance-data.pl {command_options}'
 
     @task
+    def clear_host_data_cache(self):
+        """
+        Remove cached instance attribute data that may cause instance_id conflicts when an EBS volume is cloned.
+        """
+        r = self.local_renderer
+        host_data_cache_path = '/var/tmp/aws-mon/'  # Set in CloudWatchClient::$meta_data_loc
+        self.vprint(f'Removing temporary host data cache at {host_data_cache_path}.')
+        r.sudo(f'rm -rf {host_data_cache_path}')
+
+    @task
     def verify(self):
         r = self._get_renderer(verify=True)
         r.run(self._get_check_command())
@@ -97,6 +107,8 @@ class EC2MonitorSatchel(Satchel):
             local_path=local_path,
             remote_path=r.env.awscreds_install_path,
         )
+
+        self.clear_host_data_cache()
         self.install_cron_job(
             name='default',
             extra=dict(
@@ -105,8 +117,7 @@ class EC2MonitorSatchel(Satchel):
 
     @task
     def uninstall(self):
-        #todo
-        pass
+        self.vprint('EC2MonitorSatchel.uninstall is not yet supported.')
 
     @task(precursors=['packager', 'user'])
     def configure(self):
@@ -129,7 +140,6 @@ class RDSSatchel(Satchel):
 
     @task
     def list_instances(self):
-        import boto
         import boto.rds
         conn = boto.rds.connect_to_region(
             self.genv.vm_ec2_region,
