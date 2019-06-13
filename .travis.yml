@@ -88,6 +88,9 @@ script:
 -   set -e
 -   virtualenv -p python3.7 .env
 -   . .env/bin/activate
+-   pip --version
+-   pip install -r requirements-test.txt
+-   pylint --version
 -   ./pep8.sh
 #-   tox -c tox-travis.ini -e py27-no_vagrant
 -   tox -c tox-travis.ini -e py37-no_vagrant
