@@ -11,7 +11,8 @@ except ImportError:
 
 import six
 
-class BaseTracker(object):
+
+class BaseTracker:
 
     def __init__(self, action=None):
         if action:

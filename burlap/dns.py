@@ -66,8 +66,7 @@ class DNSSatchel(Satchel):
                         print('Error adding DNS record on attempt %i of %i: %s' % (retry+1, max_retries, exc))
                         if retry + 1 == max_retries:
                             raise
-                        else:
-                            time.sleep(3)
+                        time.sleep(3)
             except BadResponse as e:
                 if e._message['code'] == 'DUPLICATE_RECORD':
                     print('Ignoring duplicate record.')

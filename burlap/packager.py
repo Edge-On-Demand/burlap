@@ -119,10 +119,9 @@ class PackagerSatchel(Satchel):
         packager = self.packager
         if packager == APT:
             return self.install_apt(*args, **kwargs)
-        elif packager == YUM:
+        if packager == YUM:
             return self.install_yum(*args, **kwargs)
-        else:
-            raise NotImplementedError('Unknown packager: %s' % (packager,))
+        raise NotImplementedError('Unknown packager: %s' % (packager,))
 
     @task
     def autoclean(self):
@@ -395,12 +394,11 @@ class PackagerSatchel(Satchel):
         if not blacklisted_packages:
             print('No blacklisted packages.')
             return
+        family = distrib_family()
+        if family == DEBIAN:
+            self.sudo('DEBIAN_FRONTEND=noninteractive apt-get -yq purge %s' % ' '.join(blacklisted_packages))
         else:
-            family = distrib_family()
-            if family == DEBIAN:
-                self.sudo('DEBIAN_FRONTEND=noninteractive apt-get -yq purge %s' % ' '.join(blacklisted_packages))
-            else:
-                raise NotImplementedError('Unknown family: %s' % family)
+            raise NotImplementedError('Unknown family: %s' % family)
 
 
     @task(precursors=['user', 'ubuntumultiverse', 'locales'])

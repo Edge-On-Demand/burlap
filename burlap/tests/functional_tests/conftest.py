@@ -17,11 +17,12 @@ import logging
 import os
 import sys
 
-from mock import patch
 import pytest
 
 from fabric.api import env, hide, lcd, local, settings
 from fabric.state import connections
+
+from mock import patch
 
 from burlap.vagrant import vagrant
 

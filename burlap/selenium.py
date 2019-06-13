@@ -66,8 +66,7 @@ class SeleniumSatchel(Satchel):
             version = version[0]
             print('Geckodriver version %s found.' % version)
             return version
-        else:
-            print('Geckodriver is not installed.')
+        print('Geckodriver is not installed.')
 
     @task
     def check_for_change(self):

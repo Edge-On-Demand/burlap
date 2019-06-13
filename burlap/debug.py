@@ -92,14 +92,10 @@ class DebugSatchel(ContainerSatchel):
         if memory:
             cmd = 'dmidecode --type 17'
             ret = r.sudo(cmd)
-            #print repr(ret)
             matches = re.findall(r'Memory\s+Device\r\n(.*?)(?:\r\n\r\n|$)', ret, flags=re.DOTALL|re.I)
-            #print len(matches)
-            #print matches[0]
             memory_slot_dicts = []
             for match in matches:
-                attrs = dict([(_a.strip(), _b.strip()) for _a, _b in re.findall(r'^([^:]+):\s+(.*)$', match, flags=re.MULTILINE)])
-                #print attrs
+                attrs = dict((_a.strip(), _b.strip()) for _a, _b in re.findall(r'^([^:]+):\s+(.*)$', match, flags=re.MULTILINE))
                 memory_slot_dicts.append(attrs)
             total_memory_gb = 0
             total_slots_filled = 0
@@ -110,7 +106,6 @@ class DebugSatchel(ContainerSatchel):
             for memory_dict in memory_slot_dicts:
                 try:
                     size = int(round(float(re.findall(r'([0-9]+)\s+MB', memory_dict['Size'])[0])/1024.))
-                    #print size
                     total_memory_gb += size
                     total_slots_filled += 1
                 except IndexError:
@@ -121,9 +116,6 @@ class DebugSatchel(ContainerSatchel):
                 _v = memory_dict['Form Factor']
                 if _v != 'Unknown':
                     memory_forms.add(_v)
-                #_v = memory_dict['Speed']
-                #if _v != 'Unknown':
-                    #memory_speeds.add(_v)
 
         # Storage
         if hdd:
@@ -217,8 +209,7 @@ class DebugSatchel(ContainerSatchel):
         if 'host_string' not in self.genv or not self.genv.host_string:
             if 'available_sites' in self.genv and r.env.SITE not in r.genv.available_sites:
                 raise Exception('No host_string set. Unknown site %s.' % r.env.SITE)
-            else:
-                raise Exception('No host_string set.')
+            raise Exception('No host_string set.')
 
         if '@' in r.genv.host_string:
             r.env.shell_host_string = r.genv.host_string

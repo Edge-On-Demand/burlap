@@ -80,7 +80,7 @@ def get_pip_oath():
     client_id, client_secret = open(VERSIONER_FN, 'r').read().strip().split(',')
     return client_id, client_secret
 
-class Dependency(object):
+class Dependency:
 
     def __init__(self, type, name, uri, version, rss_field, rss_regex): # pylint: disable=redefined-builtin
         self.type = type # source location, e.g. pip|github|rss|apt|etc
@@ -92,11 +92,8 @@ class Dependency(object):
         self.rss_regex = rss_regex
         self._cache = {}
 
-    def __unicode__(self):
-        return u'%s==%s' % (self.name, self.version)
-
     def __str__(self):
-        return unicode(self)
+        return u'%s==%s' % (self.name, self.version)
 
     def _get_current_version_pip(self):
         client = xmlrpclib.ServerProxy('http://pypi.python.org/pypi')

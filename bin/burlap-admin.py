@@ -96,4 +96,4 @@ if __name__ == "__main__":
     elif args.action == CREATE_SATCHEL:
         project.create_satchel(args.name)
     else:
-        raise NotImplementedError, 'Unknown action: %s' % (args.action)
+        raise NotImplementedError('Unknown action: %s' % (args.action))

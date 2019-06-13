@@ -81,7 +81,7 @@ class MongoDBSatchel(DatabaseSatchel):
                         ],
                     }
                     return d
-                elif ver.release == '16.04':
+                if ver.release == '16.04':
                     # https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-mongodb-on-ubuntu-16-04
                     # https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/
                     d = {
@@ -96,12 +96,7 @@ class MongoDBSatchel(DatabaseSatchel):
                         ],
                     }
                     return d
-                else:
-                    raise NotImplementedError
-            else:
-                raise NotImplementedError
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
 
     @task
     @runs_once

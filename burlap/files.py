@@ -26,7 +26,7 @@ from burlap import ContainerSatchel
 
 BLOCKSIZE = 2 ** 20 # 1MB
 
-class watch(object):
+class watch:
     """
     Context manager to watch for changes to the contents of some files.
 
@@ -110,10 +110,9 @@ class FileSatchel(ContainerSatchel):
         """
         if self.is_local and not use_sudo:
             return os.path.isfile(path)
-        else:
-            func = use_sudo and _sudo or _run
-            with self.settings(hide('running', 'warnings'), warn_only=True):
-                return func('[ -f "%(path)s" ]' % locals()).succeeded
+        func = use_sudo and _sudo or _run
+        with self.settings(hide('running', 'warnings'), warn_only=True):
+            return func('[ -f "%(path)s" ]' % locals()).succeeded
 
     @task
     def is_dir(self, path, use_sudo=False):
@@ -122,10 +121,9 @@ class FileSatchel(ContainerSatchel):
         """
         if self.is_local and not use_sudo:
             return os.path.isdir(path)
-        else:
-            func = use_sudo and _sudo or _run
-            with self.settings(hide('running', 'warnings'), warn_only=True):
-                return func('[ -d "%(path)s" ]' % locals()).succeeded
+        func = use_sudo and _sudo or _run
+        with self.settings(hide('running', 'warnings'), warn_only=True):
+            return func('[ -d "%(path)s" ]' % locals()).succeeded
 
     @task
     def is_link(self, path, use_sudo=False):
@@ -165,7 +163,6 @@ class FileSatchel(ContainerSatchel):
                 # Try the BSD version of stat
                 return func('stat -f %%Sg "%(path)s"' % locals())
             return result
-
 
     def get_mode(self, path, use_sudo=False):
         """

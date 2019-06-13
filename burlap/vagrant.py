@@ -240,7 +240,7 @@ class VagrantSatchel(ContainerSatchel):
         """
         Get the list of vagrant base boxes
         """
-        return sorted(list(set([name for name, provider in self._box_list()])))
+        return sorted(list(set(name for name, provider in self._box_list())))
 
     def _box_list(self):
         if self.version() >= (1, 4):

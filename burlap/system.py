@@ -61,23 +61,22 @@ def distrib_id():
                 if id in ['arch', 'archlinux']:  # old IDs used before lsb-release 1.4-14
                     id_ = ARCH
                 return id_
-            else:
-                if is_file('/etc/debian_version'):
-                    return DEBIAN
-                elif is_file('/etc/fedora-release'):
-                    return FEDORA
-                elif is_file('/etc/arch-release'):
-                    return ARCH
-                elif is_file('/etc/redhat-release'):
-                    release = run('cat /etc/redhat-release')
-                    if release.startswith('Red Hat Enterprise Linux'):
-                        return REDHAT
-                    elif release.startswith('CentOS'):
-                        return CENTOS
-                    elif release.startswith('Scientific Linux'):
-                        return SLES
-                elif is_file('/etc/gentoo-release'):
-                    return GENTOO
+            if is_file('/etc/debian_version'):
+                return DEBIAN
+            if is_file('/etc/fedora-release'):
+                return FEDORA
+            if is_file('/etc/arch-release'):
+                return ARCH
+            if is_file('/etc/redhat-release'):
+                release = run('cat /etc/redhat-release')
+                if release.startswith('Red Hat Enterprise Linux'):
+                    return REDHAT
+                if release.startswith('CentOS'):
+                    return CENTOS
+                if release.startswith('Scientific Linux'):
+                    return SLES
+            if is_file('/etc/gentoo-release'):
+                return GENTOO
         elif kernel == SUNOS:
             return SUNOS
 
@@ -98,8 +97,7 @@ def distrib_release():
         kernel = (run('uname -s') or '').strip().lower()
         if kernel == LINUX:
             return run('lsb_release -r --short')
-
-        elif kernel == SUNOS:
+        if kernel == SUNOS:
             return run('uname -v')
 
 
@@ -141,13 +139,13 @@ def distrib_family():
     distrib = (distrib_id() or '').lower()
     if distrib in ['debian', 'ubuntu', 'linuxmint', 'elementary os']:
         return DEBIAN
-    elif distrib in ['redhat', 'rhel', 'centos', 'sles', 'fedora']:
+    if distrib in ['redhat', 'rhel', 'centos', 'sles', 'fedora']:
         return REDHAT
-    elif distrib in ['sunos']:
+    if distrib in ['sunos']:
         return SUN
-    elif distrib in ['gentoo']:
+    if distrib in ['gentoo']:
         return GENTOO
-    elif distrib in ['arch', 'manjarolinux']:
+    if distrib in ['arch', 'manjarolinux']:
         return ARCH
     return 'other'
 
@@ -208,12 +206,11 @@ def supported_locales():
     family = distrib_family()
     if family == 'debian':
         return _parse_locales('/usr/share/i18n/SUPPORTED')
-    elif family == 'arch':
+    if family == 'arch':
         return _parse_locales('/etc/locale.gen')
-    elif family == 'redhat':
+    if family == 'redhat':
         return _supported_locales_redhat()
-    else:
-        raise UnsupportedFamily(supported=['debian', 'arch', 'redhat'])
+    raise UnsupportedFamily(supported=['debian', 'arch', 'redhat'])
 
 
 def _parse_locales(path):

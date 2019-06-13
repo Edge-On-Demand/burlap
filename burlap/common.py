@@ -339,9 +339,9 @@ def str_to_list(s):
     """
     if s is None:
         return []
-    elif isinstance(s, (tuple, list)):
+    if isinstance(s, (tuple, list)):
         return s
-    elif not isinstance(s, six.string_types):
+    if not isinstance(s, six.string_types):
         raise NotImplementedError('Unknown type: %s' % type(s))
     return [_.strip().lower() for _ in (s or '').split(',') if _.strip()]
 
@@ -394,7 +394,7 @@ def resolve_deployer(func_name):
 
     return ret
 
-class Deployer(object):
+class Deployer:
     """
     Represents a task that must be run to update a service after a configuration change
     has been made.
@@ -413,7 +413,7 @@ def get_class_module_name(self):
         name = os.path.splitext(os.path.basename(filename))[0]
     return name
 
-class _EnvProxy(object):
+class _EnvProxy:
     """
     Filters a satchel's access to the environment object.
 
@@ -531,7 +531,7 @@ def format(s, lenv, genv, prefix=None, ignored_variables=None): # pylint: disabl
 
     return s
 
-class Renderer(object):
+class Renderer:
     """
     Base convenience wrapper around command executioners.
     """
@@ -716,7 +716,7 @@ def is_callable(obj, name):
     """
     return callable(getattr(obj.__class__, name, None))
 
-class Satchel(object):
+class Satchel:
     """
     Represents a base unit of functionality that is deployed and maintained on one
     or more a target servers.
@@ -846,7 +846,7 @@ class Satchel(object):
         """
         Context manager that hides the command prefix and activates dryrun to capture all following task commands to their equivalent Bash outputs.
         """
-        class Capture(object):
+        class Capture:
 
             def __init__(self, satchel):
                 self.satchel = satchel
@@ -1517,7 +1517,7 @@ class Satchel(object):
     def dryrun(self, v):
         return set_dryrun(v)
 
-class Service(object):
+class Service:
 
     name = None
 
@@ -2213,15 +2213,15 @@ def put_or_dryrun(*args, **kwargs):
             env.put_remote_path = real_remote_path
 
         return [real_remote_path]
-    else:
-        if env.host_string in LOCALHOSTS or env.is_local:
-            if use_sudo:
-                sudo_or_dryrun('cp {local_path} {remote_path}'.format(**kwargs))
-            else:
-                local_or_dryrun('cp {local_path} {remote_path}'.format(**kwargs))
-            env.put_remote_path = kwargs.get('remote_path')
+
+    if env.host_string in LOCALHOSTS or env.is_local:
+        if use_sudo:
+            sudo_or_dryrun('cp {local_path} {remote_path}'.format(**kwargs))
         else:
-            return _put(**kwargs)
+            local_or_dryrun('cp {local_path} {remote_path}'.format(**kwargs))
+        env.put_remote_path = kwargs.get('remote_path')
+
+    return _put(**kwargs)
 
 
 def get_or_dryrun(**kwargs):
@@ -2379,16 +2379,15 @@ def get_app_package(name):
 def to_dict(obj):
     if isinstance(obj, (tuple, list)):
         return [to_dict(_) for _ in obj]
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         return dict((to_dict(k), to_dict(v)) for k, v in six.iteritems(obj))
-    elif isinstance(obj, (int, bool, float, six.string_types)):
+    if isinstance(obj, (int, bool, float, six.string_types)):
         return obj
-    elif hasattr(obj, 'to_dict'):
+    if hasattr(obj, 'to_dict'):
         return obj.to_dict()
-    else:
-        raise Exception('Unknown type: %s %s' % (obj, type(obj)))
+    raise Exception('Unknown type: %s %s' % (obj, type(obj)))
 
-class QueuedCommand(object):
+class QueuedCommand:
     """
     Represents a fabric command that is pending execution.
     """
@@ -2452,13 +2451,13 @@ class QueuedCommand(object):
         if y_cn in x_pre or y_name in x_pre:
             # Other should come first.
             return +1
-        elif y_cn in x_post or y_name in x_post:
+        if y_cn in x_post or y_name in x_post:
             # Other should come last.
             return -1
-        elif x_cn in y_pre or x_name in y_pre:
+        if x_cn in y_pre or x_name in y_pre:
             # We should come first.
             return -1
-        elif x_cn in y_post or x_name in y_post:
+        if x_cn in y_post or x_name in y_post:
             # We should come last.
             return -1
         return 0

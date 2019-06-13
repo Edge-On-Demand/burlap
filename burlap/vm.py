@@ -204,7 +204,7 @@ def list_instances(show=1, name=None, group=None, release=None, except_release=N
         if int(show):
             pprint(data, indent=4)
         return data
-    elif env.vm_type == KVM:
+    if env.vm_type == KVM:
         #virsh list
         pass
     else:
@@ -589,8 +589,8 @@ def get_or_create(name=None, group=None, config=None, extra=0, verbose=0, backen
             release=release,
             verbose=verbose,
             backend_opts=backend_opts)
-    else:
-        raise NotImplementedError
+
+    raise NotImplementedError
 
 @task_or_dryrun
 def delete(name=None, group=None, release=None, except_release=None,

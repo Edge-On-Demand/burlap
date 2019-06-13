@@ -127,13 +127,12 @@ class DeploySatchel(ContainerSatchel):
             elif components and service_name not in components:
                 self.vprint('Skipping non-matching component:', component_name)
                 continue
-            try:
-                self.vprint('Retrieving manifest for %s...' % component_name)
-                manifest_data[manifest_key] = func()
-                if self.verbose:
-                    pprint(manifest_data[manifest_key], indent=4)
-            except exceptions.AbortDeployment as e:
-                raise
+
+            self.vprint('Retrieving manifest for %s...' % component_name)
+            manifest_data[manifest_key] = func()
+            if self.verbose:
+                pprint(manifest_data[manifest_key], indent=4)
+
         return manifest_data
 
     def get_previous_thumbprint(self, components=None):
@@ -174,10 +173,9 @@ class DeploySatchel(ContainerSatchel):
         r = self.local_renderer
         if self.file_exists(r.env.lockfile_path):
             raise exceptions.AbortDeployment('Lock file %s exists. Perhaps another deployment is currently underway?' % r.env.lockfile_path)
-        else:
-            self.vprint('Locking %s.' % r.env.lockfile_path)
-            r.env.hostname = socket.gethostname()
-            r.run_or_local('echo "{hostname}" > {lockfile_path}')
+        self.vprint('Locking %s.' % r.env.lockfile_path)
+        r.env.hostname = socket.gethostname()
+        r.run_or_local('echo "{hostname}" > {lockfile_path}')
 
     @task
     def unlock(self):

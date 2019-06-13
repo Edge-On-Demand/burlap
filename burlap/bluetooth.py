@@ -11,7 +11,7 @@ class BluetoothSatchel(ServiceSatchel):
     @property
     def packager_system_packages(self):
         return {
-            UBUNTU: ['bluetooth', 'bluez', 'python-bluez' 'bluez-firmware', 'blueman', 'pi-bluetooth'],
+            UBUNTU: ['bluetooth', 'bluez', 'python-bluez', 'bluez-firmware', 'blueman', 'pi-bluetooth'],
             DEBIAN: ['bluetooth', 'bluez', 'python-bluez', 'bluez-firmware', 'blueman', 'pi-bluetooth'],
         }
 

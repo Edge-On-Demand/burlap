@@ -215,17 +215,12 @@ class PostgreSQLSatchel(DatabaseSatchel):
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
-                elif ver.release == '18.04':
+                if ver.release == '18.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
-                else:
-                    raise NotImplementedError
-            else:
-                raise NotImplementedError
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
 
     @task
     def write_pgpass(self, name=None, site=None, use_sudo=0, root=0):
@@ -631,17 +626,12 @@ class PostgreSQLClientSatchel(Satchel):
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
-                elif ver.release == '18.04':
+                if ver.release == '18.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
-                else:
-                    raise NotImplementedError
-            else:
-                raise NotImplementedError
-        else:
-            raise NotImplementedError
+        raise NotImplementedError
 
     @task(precursors=['packager'])
     def configure(self, *args, **kwargs):

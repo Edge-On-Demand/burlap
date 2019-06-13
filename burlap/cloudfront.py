@@ -53,8 +53,7 @@ class CloudfrontSatchel(Satchel):
                 distro = conn.create_distribution(origin=origin, enabled=True)
 
             return distro
-        else:
-            print('boto.connect_cloudfront().create_distribution(%s)' % repr(origin_dns))
+        print('boto.connect_cloudfront().create_distribution(%s)' % repr(origin_dns))
 
     @task
     def configure(self):

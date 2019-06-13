@@ -7,7 +7,8 @@ import six
 
 from fabric.api import env
 
-class Shelf(object):
+
+class Shelf:
     """
     A helper class for serializing Python dictionaries to and from YAML,
     keeping the dictionary keys sorted to help readability.

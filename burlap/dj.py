@@ -22,6 +22,9 @@ from burlap.common import get_last_modified_timestamp
 from burlap.trackers import BaseTracker
 
 
+cmp = lambda a, b: (a > b) - (a < b)
+
+
 class DjangoSettingsTracker(BaseTracker):
     """
     Tracks changes to one or more satchel settings.
@@ -370,11 +373,10 @@ class DjangoSatchel(Satchel):
             elif 'mysql' in r.env.db_engine:
                 if sql:
                     raise NotImplementedError("Custom SQL commands are not yet supported for MySQL.")
-                else:
-                    paths = list(get_paths('mysql'))
-                    run_paths(
-                        paths=paths,
-                        cmd_template="mysql -v -h {db_host} -u {db_user} -p'{db_password}' {db_name} < {sql_path}")
+                paths = list(get_paths('mysql'))
+                run_paths(
+                    paths=paths,
+                    cmd_template="mysql -v -h {db_host} -u {db_user} -p'{db_password}' {db_name} < {sql_path}")
 
             else:
                 raise NotImplementedError

@@ -118,7 +118,7 @@ class S3Satchel(Satchel):
             return
         if isinstance(paths, six.string_types):
             paths = paths.split(',')
-        all_paths = map(str.strip, paths)
+        all_paths = list(map(str.strip, paths))
         i = 0
         while 1:
             paths = all_paths[i:i+1000]
