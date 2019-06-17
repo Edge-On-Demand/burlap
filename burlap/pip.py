@@ -126,11 +126,8 @@ class PIPSatchel(Satchel):
         Create the virtual environment.
         """
         r = self.local_renderer
-
         print('Creating new virtual environment...')
-        with self.settings(warn_only=True):
-            cmd = f'python{self.env.python_version} -m venv {{virtualenv_dir}}'
-            r.run_or_local(cmd)
+        r.run('python{python_version} -m venv {virtualenv_dir}')
 
     def get_combined_requirements(self, requirements=None):
         """
@@ -187,10 +184,10 @@ class PIPSatchel(Satchel):
         r.put(local_path=tmp_fn, remote_path=r.env.pip_remote_requirements_fn)
 
         # Ensure we're always using the latest pip.
-        r.run_or_local('{virtualenv_dir}/bin/pip {quiet_flag} install -U pip')
+        r.run('{virtualenv_dir}/bin/pip {quiet_flag} install -U pip')
 
         # Install requirements from file.
-        r.run_or_local("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}")
+        r.run("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}")
 
     @task
     def record_manifest(self):

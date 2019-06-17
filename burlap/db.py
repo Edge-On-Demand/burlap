@@ -179,6 +179,7 @@ class DatabaseSatchel(ServiceSatchel):
             self.set_root_login(r)
 
             self._database_renderers[key] = r
+            self._local_renderer = r
         else:
             self.vprint('Cached db renderer found.')
 

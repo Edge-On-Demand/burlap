@@ -35,10 +35,11 @@ class PipTests(TestCase):
                 # Install without the quiet flag
                 pip_satchel.verbose = GLOBAL_VERBOSE
                 pip_satchel.env.quiet_flag = ''
+                pip_satchel.env.virtualenv_dir = '%s/.env' % d
                 pip_satchel.configure()
 
-                self.assertTrue(os.path.isdir('.env'))
-                ret = getoutput('.env/bin/pip freeze | grep -i yaml')
+                self.assertTrue(os.path.isdir(pip_satchel.env.virtualenv_dir))
+                ret = getoutput('%s/bin/pip freeze | grep -i yaml' % pip_satchel.env.virtualenv_dir)
                 print('pip freeze:\n', ret)
                 self.assertTrue('PyYAML' in ret)
 

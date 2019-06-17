@@ -83,3 +83,15 @@ Nearly all of Burlap's built-in tasks run Bash commands behind the scenes. There
 it's possible to convert a Burlap call to a Bash script. To do this, set the environment variable `BURLAP_COMMAND_PREFIX=1`, activate dryrun, and capture the output to a file. e.g.
 
     export BURLAP_COMMAND_PREFIX=1; fab staging some_task:dryrun=1 > myscript.sh
+
+To run all tests:
+
+    tox -c tox-full.ini
+    
+To run all tests on a specific environment:
+
+    tox -c tox-full.ini -e py37-ubuntu_18_04_64
+
+To run a specific test in a specific environment:
+
+    tox -c tox-full.ini -e py37-ubuntu_18_04_64 -- -s burlap/tests/functional_tests/test_md5.py::Md5Tests

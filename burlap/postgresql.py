@@ -386,7 +386,12 @@ class PostgreSQLSatchel(DatabaseSatchel):
         but not the command to finally load the snapshot.
         """
 
+        site = site or self.genv.SITE
+
         r = self.database_renderer(name=name, site=site)
+
+        # Load site-specific satchel settings.
+        self.set_site_specifics(site)
 
         # Render the snapshot filename.
         r.env.dump_fn = self.get_default_db_fn(fn_template=dump_fn, dest_dir=dest_dir)
