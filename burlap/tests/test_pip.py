@@ -18,6 +18,7 @@ class PipTests(TestCase):
     def test_pip_install(self):
         pip_satchel = get_satchel('pip')
         try:
+            print('environ:', os.environ)
             # Initialize tmp directory.
             d = '/tmp/test_pip_install'
             if os.path.isdir(d):
