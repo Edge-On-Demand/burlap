@@ -8,7 +8,7 @@ cache:
 before_script:
   - cat /etc/lsb-release
   - apt-get -yq update
-  - apt-get -yq install software-properties-common systemd openssh-client
+  - apt-get -yq install software-properties-common systemd openssh-client openssh-server
   - add-apt-repository -y ppa:deadsnakes/ppa
   - apt -yq purge google-chrome*
   - ls /etc/apt/sources.list.d
@@ -22,6 +22,8 @@ before_script:
   - apt-get -yq install mysql-server
   - systemctl enable mysql
   - service mysql start
+  - systemctl enable ssh
+  - systemctl start ssh
   - apt-get -o Dpkg::Options::="--force-confnew" --allow-downgrades --allow-remove-essential --allow-change-held-packages -fuy --allow-unauthenticated dist-upgrade
   - apt-get -yq install build-essential
   #- apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
