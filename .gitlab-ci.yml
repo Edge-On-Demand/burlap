@@ -23,7 +23,7 @@ before_script:
   - systemctl enable mysql
   - service mysql start
   - systemctl enable ssh
-  - systemctl start ssh
+  - service ssh start
   - apt-get -o Dpkg::Options::="--force-confnew" --allow-downgrades --allow-remove-essential --allow-change-held-packages -fuy --allow-unauthenticated dist-upgrade
   - apt-get -yq install build-essential
   #- apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
