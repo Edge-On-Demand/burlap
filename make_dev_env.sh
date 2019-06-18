@@ -7,6 +7,6 @@ sudo apt-get install -y `cat "apt-requirements-test.txt"| sed '/^#/ d' | tr "\\n
 sudo usermod -a -G libvirtd $USER
 [ -d .env ] && rm -Rf .env
 virtualenv -p python$PYTHON_VERSION .env
-.env/bin/pip install burlap pylint
+.env/bin/pip install burlap pylint twine
 rm -Rf $PWD/.env/lib/python$PYTHON_VERSION/site-packages/burlap
 ln -s $PWD/burlap $PWD/.env/lib/python$PYTHON_VERSION/site-packages
