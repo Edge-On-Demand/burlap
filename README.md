@@ -1,7 +1,9 @@
 Burlap - configuration management designed for simplicity and speed
 ===================================================================
 
-[![](https://img.shields.io/pypi/v/burlap.svg)](https://pypi.python.org/pypi/burlap) [![Build Status](https://img.shields.io/travis/chrisspen/burlap.svg?branch=master)](https://travis-ci.org/chrisspen/burlap) [![](https://pyup.io/repos/gitlab/chrisspen/burlap/shield.svg)](https://pyup.io/repos/gitlab/chrisspen/burlap)
+[![](https://img.shields.io/pypi/v/burlap.svg)](https://pypi.python.org/pypi/burlap)
+[![Pipeline Status](https://gitlab.com/chrisspen/burlap/badges/master/pipeline.svg)](https://gitlab.com/chrisspen/burlap/commits/master) 
+[![](https://pyup.io/repos/gitlab/chrisspen/burlap/shield.svg)](https://pyup.io/repos/gitlab/chrisspen/burlap)
 
 Overview
 --------
