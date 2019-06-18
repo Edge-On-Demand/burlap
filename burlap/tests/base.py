@@ -79,13 +79,9 @@ class TestCase(unittest.TestCase):
 
         # Save fabric state.
         self._env = env.copy()
-#         print('before env clear:')
-#         pprint(env, indent=4)
 
         # Reset fabric state.
-        #self.clear_env()
-        #self.update_env(default_env)
-        print('setUp: initializing env...')
+        # print('setUp: initializing env...')
         init_env()
         #deploy_init_env()
 
@@ -95,38 +91,36 @@ class TestCase(unittest.TestCase):
 
         # Save cwd.
         self._cwd = os.getcwd()
-        print('cwd:', self._cwd)
+        # print('cwd:', self._cwd)
 
         # Save burlap state.
-        print('setUp: Saving burlap state...')
+        # print('setUp: Saving burlap state...')
         self._burlap_state = get_state()
 
         self._dryrun = get_dryrun()
         self._verbose = get_verbose()
 
         # Clear runs_once on legacy runs_once methods.
-        print('setUp: Clearing runs_once methods...')
+        # print('setUp: Clearing runs_once methods...')
         modules = [deploy, deploy_satchel, manifest]
         for module in modules:
-            print('setUp: Checking module:', module)
+            # print('setUp: Checking module:', module)
             for name in dir(module):
-                print('setUp: Checking name:', name)
-                #func = getattr(module, name)
-                #if not callable(func):
+                # print('setUp: Checking name:', name)
                 if not is_callable(module, name):
                     continue
                 func = getattr(module, name)
-                print('clearing:', func)
+                # print('clearing:', func)
                 clear_runs_once(func)
 
         # Clear runs_once on our custom runs_once methods.
-        print('setUp: Clearing custom runs_once methods...')
+        # print('setUp: Clearing custom runs_once methods...')
         from burlap.common import runs_once_methods
         for meth in runs_once_methods:
             clear_runs_once(func)
 
         # Ensure all satchels re-push all their local variables back into the global env.
-        print('setUp: Clearing satchels...')
+        # print('setUp: Clearing satchels...')
         for satchel in all_satchels.values():
             satchel.register()
             satchel.clear_caches()
@@ -142,11 +136,8 @@ class TestCase(unittest.TestCase):
         env.abort_on_prompts = True
         env.always_use_pty = False
 
-        print('setUp: Purging deployments...')
-        #delete_plan_data_dir()
+        # print('setUp: Purging deployments...')
         deploy_satchel.purge()
-
-        #clear_fs_cache()
 
         super(TestCase, self).setUp()
 
