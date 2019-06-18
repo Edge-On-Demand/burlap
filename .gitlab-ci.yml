@@ -35,7 +35,7 @@ before_script:
   - ssh-add
 
 script:
-- set -e
+#- set -e
 - virtualenv -p python3.7 .env
 - . .env/bin/activate
 - pip --version
