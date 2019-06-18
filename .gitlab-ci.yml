@@ -1,0 +1,47 @@
+# https://hub.docker.com/_/ubuntu
+image: ubuntu:latest
+
+cache:
+  paths:
+  - ~/.cache/pip/
+
+before_script:
+  - cat /etc/lsb-release
+  - apt-get -yq update
+  - apt-get -yq install software-properties-common
+  - add-apt-repository -y ppa:deadsnakes/ppa
+  - apt -yq purge google-chrome*
+  - ls /etc/apt/sources.list.d
+  - rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
+  - apt-get -yq update
+  - apt-get -yq install python-minimal python2.7 python2.7-dev python3.7 python3.7-dev python-pip python3-pip python3-setuptools
+  - apt-get -yq purge postgr*
+  - apt-get -yq purge virtualbox*
+  - apt-get -yq purge oracle-java*
+
+  - systemctl enable mysql
+  - service mysql start
+  - apt-get -o Dpkg::Options::="--force-confnew" --allow-downgrades --allow-remove-essential --allow-change-held-packages -fuy --allow-unauthenticated dist-upgrade
+  - apt-get -yq install build-essential
+  - apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
+  - python -V
+  - pip3 install -r requirements-test.txt
+
+  # Allow us to SSH passwordless to localhost
+  - ssh-keygen -f ~/.ssh/id_rsa -N ""
+  - cp ~/.ssh/{id_rsa.pub,authorized_keys}
+  # Creation of an SSH agent for testing forwarding
+  - eval $(ssh-agent)
+  - ssh-add
+
+script:
+- set -e
+- virtualenv -p python3.7 .env
+- . .env/bin/activate
+- pip --version
+- pip install -r requirements-test.txt
+- pylint --version
+- ./pep8.sh
+#-   tox -c tox-travis.ini -e py27-no_vagrant
+##-   tox -c tox-travis.ini -e py37-no_vagrant
+- tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests
