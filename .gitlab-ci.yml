@@ -45,6 +45,5 @@ test:
   - "pip install -r requirements-test.txt"
   - "pylint --version"
   - ./pep8.sh
-  #-   tox -c tox-travis.ini -e py27-no_vagrant
-  ##-   tox -c tox-travis.ini -e py37-no_vagrant
-  - "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
+  #- "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
+  -   tox -c tox-travis.ini -e py37-no_vagrant
