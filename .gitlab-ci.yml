@@ -8,7 +8,7 @@ cache:
 before_script:
   - cat /etc/lsb-release
   - apt-get -yq update
-  - apt-get -yq install software-properties-common
+  - apt-get -yq install software-properties-common systemd
   - add-apt-repository -y ppa:deadsnakes/ppa
   - apt -yq purge google-chrome*
   - ls /etc/apt/sources.list.d
@@ -36,13 +36,12 @@ before_script:
 
 test:
   script:
-  - set -e
   - virtualenv -p python3.7 .env
-  - . .env/bin/activate
-  - pip --version
-  - pip install -r requirements-test.txt
-  - pylint --version
+  - ". .env/bin/activate"
+  - "pip --version"
+  - "pip install -r requirements-test.txt"
+  - "pylint --version"
   - ./pep8.sh
   #-   tox -c tox-travis.ini -e py27-no_vagrant
   ##-   tox -c tox-travis.ini -e py37-no_vagrant
-  - tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests
+  - "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
