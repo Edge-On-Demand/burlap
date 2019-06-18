@@ -127,6 +127,7 @@ class PIPSatchel(Satchel):
         """
         r = self.local_renderer
         print('Creating new virtual environment...')
+        print('shell_env:', self.genv.shell_env)
         r.run('python{python_version} -m venv {virtualenv_dir}')
 
     def get_combined_requirements(self, requirements=None):
