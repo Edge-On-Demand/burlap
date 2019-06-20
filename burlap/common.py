@@ -1584,14 +1584,17 @@ class Service:
             if pattern in self.commands[action]:
                 return self.commands[action][pattern]
 
+    @task
     def enable(self):
         cmd = self.get_command(ENABLE)
         sudo_or_dryrun(cmd)
 
+    @task
     def disable(self):
         cmd = self.get_command(DISABLE)
         sudo_or_dryrun(cmd)
 
+    @task
     def restart(self):
         s = {'warn_only':True} if self.ignore_errors else {}
         restart_cmd = self.get_command(RESTART)
@@ -1602,24 +1605,28 @@ class Service:
             self.stop()
             self.start()
 
+    @task
     def reload(self):
         s = {'warn_only':True} if self.ignore_errors else {}
         with settings(**s):
             cmd = self.get_command(RELOAD)
             sudo_or_dryrun(cmd)
 
+    @task
     def start(self):
         s = {'warn_only':True} if self.ignore_errors else {}
         with settings(**s):
             cmd = self.get_command(START)
             sudo_or_dryrun(cmd)
 
+    @task
     def stop(self, ignore_errors=True):
         s = {'warn_only': True} if ignore_errors else {}
         with settings(**s):
             cmd = self.get_command(STOP)
             sudo_or_dryrun(cmd)
 
+    @task
     def status(self):
         with settings(warn_only=True):
             cmd = self.get_command(STATUS)
