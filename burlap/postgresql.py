@@ -421,7 +421,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         with settings(warn_only=True):
             if r.env.schema_mt:
-                r.sudo('psql --no-password --user={db_root_username} --host={db_host} --dbname={db_name} -c "DROP SCHEMA IF EXISTS {db_schema};"',
+                r.sudo('psql --no-password --user={db_root_username} --host={db_host} --dbname={db_name} -c "DROP SCHEMA IF EXISTS {db_schema} CASCADE;"',
                     user=r.env.postgres_user)
             else:
                 r.sudo('dropdb --if-exists --no-password --user={db_root_username} --host={db_host} {db_name}', user=r.env.postgres_user)
@@ -429,8 +429,6 @@ class PostgreSQLSatchel(DatabaseSatchel):
         if r.env.schema_mt:
             with settings(warn_only=True):
                 r.sudo('psql --no-password --user={db_root_username} --host={db_host} -c "CREATE DATABASE {db_name};"', user=r.env.postgres_user)
-            # r.sudo('psql --no-password --user={db_root_username} --host={db_host} --dbname={db_name} -c "CREATE SCHEMA {db_schema};"',
-                # user=r.env.postgres_user)
         else:
             r.sudo('psql --no-password --user={db_root_username} --host={db_host} -c "CREATE DATABASE {db_name};"', user=r.env.postgres_user)
 
