@@ -123,12 +123,13 @@ class PIPSatchel(Satchel):
     @task
     def init(self):
         """
-        Create the virtual environment.
+        Create the virtual environment if it doesn't exist already.
         """
         r = self.local_renderer
-        print('Creating new virtual environment...')
-        print('shell_env:', self.genv.shell_env)
-        r.run('python{python_version} -m venv {virtualenv_dir}')
+        if not self.virtualenv_exists():
+            print('Creating new virtual environment...')
+            print('shell_env:', self.genv.shell_env)
+            r.run('python{python_version} -m venv {virtualenv_dir}')
 
     def get_combined_requirements(self, requirements=None):
         """
