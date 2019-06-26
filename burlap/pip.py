@@ -44,10 +44,9 @@ class PIPSatchel(Satchel):
     def has_pip(self):
         r = self.local_renderer
         with self.settings(warn_only=True):
-            cmd = f'which pip{self.env.python_version}'
-            ret = (r.run_or_local(cmd) or '').strip()
+            ret = (r.run_or_local('which pip{python_version}') or '').strip()
             if ret:
-                print('Pip is installed at {}.'.format(ret))
+                print(f'Pip is installed at {ret}.')
             else:
                 print('Pip is not installed.')
             return bool(ret)
@@ -86,28 +85,21 @@ class PIPSatchel(Satchel):
             r.sudo('rm -Rf {virtualenv_dir}')
 
     @task
-    def has_virtualenv(self):
-        """
-        Return true if the virtualenv tool is installed.
-        """
-        with self.settings(warn_only=True):
-            ret = self.run_or_local('which virtualenv').strip()
-            return bool(ret)
-
-    @task
     def virtualenv_exists(self, virtualenv_dir=None):
         """
-        Returns true if the virtual environment has been created.
+        Return True if the virtual environment has been created.
         """
         r = self.local_renderer
+        if not virtualenv_dir:
+            virtualenv_dir = self.env.virtualenv_dir
         with self.settings(warn_only=True):
-            ret = r.run_or_local('ls {virtualenv_dir}') or ''
-            ret = 'cannot access' not in ret.strip().lower()
+            ls_output = r.run_or_local('ls {virtualenv_dir}') or ''
+            ret = 'bin' in ls_output.strip()  # Virtualenv should have a 'bin' directory
 
         if ret:
-            self.vprint('Yes')
+            self.vprint(f'Virtualenv exists at {virtualenv_dir}.')
         else:
-            self.vprint('No')
+            self.vprint(f'Virtualenv does not exist at {virtualenv_dir}.')
 
         return ret
 
@@ -121,7 +113,7 @@ class PIPSatchel(Satchel):
         r.local('pipdeptree -p {name} --reverse')
 
     @task
-    def init(self):
+    def create_virtualenv(self):
         """
         Create the virtual environment if it doesn't exist already.
         """
@@ -176,7 +168,7 @@ class PIPSatchel(Satchel):
         self.bootstrap()
 
         # Make sure our virtualenv is installed.
-        self.init()
+        self.create_virtualenv()
 
         # Collect all requirements.
         tmp_fn = r.write_temp_file(self.get_combined_requirements(requirements=r.env.requirements))
