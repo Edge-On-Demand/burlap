@@ -150,6 +150,7 @@ class SupervisorSatchel(ServiceSatchel):
     def register_callback(self, f):
         self.genv._supervisor_create_service_callbacks.append(f)
 
+    @task
     def restart(self):
         """
         Supervisor can take a very long time to start and stop,
@@ -171,6 +172,7 @@ class SupervisorSatchel(ServiceSatchel):
             time.sleep(sleep_n)
         raise Exception('Failed to restart service %s!' % self.name)
 
+    @task
     def reload(self):
         r = self.local_renderer
         r.sudo('supervisorctl reread')

@@ -54,7 +54,7 @@ class S3Satchel(Satchel):
 
         _settings = dj.get_settings(site=site, role=role)
         assert _settings, 'Unable to import settings.'
-        for k in _settings.__dict__.iterkeys():
+        for k in _settings.__dict__.keys():
             if k.startswith('AWS_'):
                 r.genv[k] = _settings.__dict__[k]
 
