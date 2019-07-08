@@ -10,6 +10,7 @@ import traceback
 import glob
 from importlib import import_module
 from collections import defaultdict
+from functools import cmp_to_key
 from pprint import pprint
 
 import six
@@ -20,9 +21,6 @@ from burlap.constants import *
 from burlap.decorators import task
 from burlap.common import get_last_modified_timestamp
 from burlap.trackers import BaseTracker
-
-
-cmp = lambda a, b: (a > b) - (a < b)
 
 
 class DjangoSettingsTracker(BaseTracker):
@@ -289,7 +287,8 @@ class DjangoSatchel(Satchel):
                 return -1
             if d1[1] and d1[1] in d0[2]:
                 return +1
-            return cmp(d0[0], d1[0])
+            return (d0[0] > d1[0]) - (d0[0] < d1[0])
+        cmp_paths = cmp_to_key(cmp_paths)  # py3 fix
 
         def get_paths(t):
             """
@@ -311,7 +310,7 @@ class DjangoSatchel(Satchel):
                     view_name = matches[0]
                     print('Found view %s.' % view_name)
                 data.append((path, view_name, content))
-            for d in sorted(data, cmp=cmp_paths):
+            for d in sorted(data, key=cmp_paths):
                 yield d[0]
 
         def run_paths(paths, cmd_template, max_retries=3):
