@@ -1642,8 +1642,12 @@ class Service:
             print('is_running.ret:', ret)
         return ret
 
+
 class ServiceSatchel(Satchel, Service):
-    pass
+    def __init__(self, *args, **kwargs):
+        Satchel.__init__(self, *args, **kwargs)
+        Service.__init__(self, *args, **kwargs)
+
 
 class ContainerSatchel(Satchel):
     """
