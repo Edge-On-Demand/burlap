@@ -321,6 +321,9 @@ class DatabaseSatchel(ServiceSatchel):
         site = site or self.genv.SITE
         r = self.database_renderer(name=name, site=site)
 
+        # Load site-specific satchel settings.
+        self.set_site_specifics(site)
+
         # Load optional site-specific command, if given.
         try:
             r.env.dump_command = self.genv.sites[site]['postgresql_dump_command']
