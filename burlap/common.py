@@ -1607,10 +1607,12 @@ class Service:
 
     @task
     def reload(self):
-        s = {'warn_only':True} if self.ignore_errors else {}
-        with settings(**s):
+        with settings(warn_only=True):
             cmd = self.get_command(RELOAD)
-            sudo_or_dryrun(cmd)
+            ret = sudo_or_dryrun(cmd) or ''
+            # If server is stopped or otherwise not active, then simply start it.
+            if 'not active' in ret:
+                self.start()
 
     @task
     def start(self):
