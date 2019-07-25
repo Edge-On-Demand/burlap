@@ -2625,15 +2625,22 @@ def get_os_version():
 def find_template(template):
     verbose = get_verbose()
     final_fqfn = None
-    for path in get_template_dirs():
-        if verbose:
-            print('Checking "%s" for "%s"...' % (path, template))
-        fqfn = os.path.abspath(os.path.join(path, template))
+    if template.startswith('.'):
+        fqfn = os.path.abspath(template)
         if os.path.isfile(fqfn):
             if verbose:
                 print('Using template: %s' % (fqfn,))
             final_fqfn = fqfn
-            break
+    else:
+        for path in get_template_dirs():
+            if verbose:
+                print('Checking "%s" for "%s"...' % (path, template))
+            fqfn = os.path.abspath(os.path.join(path, template))
+            if os.path.isfile(fqfn):
+                if verbose:
+                    print('Using template: %s' % (fqfn,))
+                final_fqfn = fqfn
+                break
 
     if not final_fqfn:
         raise IOError('Template not found: %s' % template)
