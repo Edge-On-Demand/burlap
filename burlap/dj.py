@@ -135,6 +135,8 @@ class DjangoSatchel(Satchel):
 
         self.env.configure_media_command = 'cd {local_project_dir}; {manage_cmd} collectstatic --noinput'
 
+        self.env.createsuperuser_export_cmd = ''
+
     def has_database(self, name, site=None, role=None):
         settings = self.get_settings(site=site, role=role)
         return name in settings.DATABASES
@@ -397,7 +399,8 @@ class DjangoSatchel(Satchel):
         if self.is_local:
             r.env.project_dir = r.env.local_project_dir
         r.genv.SITE = r.genv.SITE or site
-        r.run_or_local('export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; {manage_cmd} {createsuperuser_cmd} {options_str}')
+        r.run_or_local('export SITE={SITE}; export ROLE={ROLE}; {createsuperuser_export_cmd} cd {project_dir}; ' \
+            '{manage_cmd} {createsuperuser_cmd} {options_str}')
 
     @task
     def loaddata(self, path, site=None):
