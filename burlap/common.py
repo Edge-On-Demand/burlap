@@ -1180,6 +1180,7 @@ class Satchel:
         Loads settings for the target site.
         """
         r = self.local_renderer
+        site = site or self.genv.SITE
         site_data = self.genv.sites[site].copy()
         r.env.site = site
         if self.verbose:
