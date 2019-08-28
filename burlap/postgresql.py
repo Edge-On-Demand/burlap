@@ -377,6 +377,18 @@ class PostgreSQLSatchel(DatabaseSatchel):
             r.run('createlang -U postgres plpgsql {db_name} || true')
 
     @task
+    def drop_connections(self, name=None, site=None):
+        site = site or self.genv.SITE
+        r = self.database_renderer(name=name, site=site)
+        external_ip = (r.run('wget http://ipecho.net/plain -O - -q ; echo') or '').strip()
+        if r.env.db_root_username == 'postgres' and r.env.db_host == external_ip:
+            r.env.db_host = '127.0.0.1'
+        r.sudo('psql --no-password --user={db_root_username} --host={db_host} --dbname={db_name} -c "'
+            'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=\'{db_name}\' AND usename != \'{db_root_username}\' '
+            'AND application_name!=\'psql\';"',
+            user=r.env.postgres_user)
+
+    @task
     #@runs_once Interferes with global methods that want to load multiple databases.
     def load(self, dump_fn='', prep_only=0, force_upload=0, from_local=0, name=None, site=None, dest_dir=None, force_host=None):
         """
@@ -418,6 +430,9 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         if force_host:
             r.env.db_host = force_host
+
+        # Disconnect all other users so we can drop the database if needed.
+        self.drop_connections(name=name, site=site)
 
         with settings(warn_only=True):
             if r.env.schema_mt:

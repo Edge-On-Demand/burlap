@@ -78,11 +78,15 @@ class PIPSatchel(Satchel):
         r.run_or_local(f'python{self.env.python_version} -m pip install pip')
 
     @task
-    def clean_virtualenv(self, virtualenv_dir=None):
+    def clean(self, virtualenv_dir=None):
         r = self.local_renderer
         with self.settings(warn_only=True):
             print('Deleting old virtual environment...')
             r.sudo('rm -Rf {virtualenv_dir}')
+
+    @task
+    def clean_virtualenv(self, *args, **kwargs):
+        self.clean(*args, **kwargs)
 
     @task
     def virtualenv_exists(self, virtualenv_dir=None):
