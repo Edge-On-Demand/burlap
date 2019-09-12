@@ -356,14 +356,18 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
     @task
     def create(self, name='default', site=None, **kargs):
-
         r = self.database_renderer(name=name, site=site)
+
+        # Load site-specific satchel settings.
+        site = site or self.genv.SITE
+        self.set_site_specifics(site)
 
         # Create role/user.
         with settings(warn_only=True):
             r.pc('Creating user...')
             r.run('psql --user={postgres_user} --no-password --command="CREATE USER {db_user} WITH PASSWORD \'{db_password}\';"')
 
+        # Create db
         r.pc('Creating database...')
         with settings(warn_only=True):
             ret = r.run('psql --user={postgres_user} --no-password --command="'
@@ -371,6 +375,16 @@ class PostgreSQLSatchel(DatabaseSatchel):
             '"')
         if isinstance(ret, six.string_types) and 'ERROR:' in ret and 'already exists' not in ret:
             raise Exception('Error creating database: %s' % ret)
+
+        if r.env.schema_mt:
+            # Create schema
+            # This assumes each schema is associated with a unique user.
+            r.pc('Creating schema...')
+            r.sudo('psql --user={db_root_username} --host={db_host} --dbname={db_name} -c "'
+                'CREATE SCHEMA IF NOT EXISTS {db_schema}; '
+                'GRANT ALL PRIVILEGES ON SCHEMA {db_schema} to {db_user}; '
+                'ALTER ROLE {db_user} SET search_path TO {db_schema};'
+                '"', user=r.env.postgres_user)
 
         with settings(warn_only=True):
             r.pc('Enabling plpgsql on database...')
