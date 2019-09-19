@@ -397,10 +397,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
         external_ip = (r.run('wget http://ipecho.net/plain -O - -q ; echo') or '').strip()
         if r.env.db_root_username == 'postgres' and r.env.db_host == external_ip:
             r.env.db_host = '127.0.0.1'
-        r.sudo('psql --no-password --user={db_root_username} --host={db_host} --dbname={db_name} -c "'
-            'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=\'{db_name}\' AND usename != \'{db_root_username}\' '
-            'AND application_name!=\'psql\';"',
-            user=r.env.postgres_user)
+        with self.settings(warn_only=True):
+            r.sudo('psql --no-password --user={db_root_username} --host={db_host} --dbname={db_name} -c "'
+                'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=\'{db_name}\' AND usename != \'{db_root_username}\' '
+                'AND application_name!=\'psql\';"',
+                user=r.env.postgres_user)
 
     @task
     #@runs_once Interferes with global methods that want to load multiple databases.
@@ -417,7 +418,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
         r = self.database_renderer(name=name, site=site)
 
         # Load site-specific satchel settings.
-        self.set_site_specifics(site)
+        try:
+            self.set_site_specifics(site)
+        except KeyError:
+            # Sometimes databases have a logical site associated with them but no explicit site settings.
+            pass
 
         # Render the snapshot filename.
         r.env.dump_fn = self.get_default_db_fn(fn_template=dump_fn, dest_dir=dest_dir)

@@ -113,7 +113,6 @@ class BuildBotSatchel(ServiceSatchel):
     @task
     def restart(self):
         r = self.local_renderer
-        self.set_permissions()
         if r.env.supervisor_enabled:
             r.sudo('supervisorctl restart all')
         else:
@@ -308,8 +307,6 @@ class BuildBotSatchel(ServiceSatchel):
                 r.env.tmp_remote_path = os.path.split(path)[0]
 
             r.pc('Fixing permissions...')
-            r.sudo('chown -R {bb_user}:{bb_group} {project_dir}')
-            r.sudo('chmod -R {perms} {project_dir}')
             r.local('rsync '
                 '--recursive --verbose --times --omit-dir-times --links '
                 '--compress --copy-links '

@@ -263,13 +263,15 @@ class RabbitMQSatchel(ServiceSatchel):
         r.sudo('service cron restart')
 
     @task
-    def purge_mnesia(self):
+    def purge_mnesia(self, *args, **kwargs):
         """
         Deletes all persistent data on the server.
         """
         self.install_purge_script()
         r = self.local_renderer
-        r.sudo('{auto_purge_mnesia_command_path}')
+        s_args = (' '.join(map(str, args))) + ' ' + (' '.join('%s=%s' % (k, v) for k, v in kwargs.items()))
+        s_args = s_args.strip()
+        r.sudo('{auto_purge_mnesia_command_path}' + ((' ' + s_args) if s_args else ''))
 
     @task
     def uninstall_purge_script(self):
