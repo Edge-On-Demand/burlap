@@ -73,6 +73,12 @@ class CronSatchel(ServiceSatchel):
         r.env.cron_stderr_log = r.format(r.env.stderr_log_template)
 
     @task
+    def record_manifest(self):
+        manifest = super(CronSatchel, self).record_manifest()
+        manifest['available_sites_by_host'] = self.genv.available_sites_by_host
+        return manifest
+
+    @task
     def deploy_logrotate(self):
         r = self.local_renderer
         with self.settings(warn_only=True):
