@@ -74,6 +74,9 @@ class CronSatchel(ServiceSatchel):
 
     @task
     def record_manifest(self):
+        """
+        Run satchel when sites are added or removed.
+        """
         manifest = super(CronSatchel, self).record_manifest()
         manifest['available_sites_by_host'] = self.genv.available_sites_by_host
         return manifest
