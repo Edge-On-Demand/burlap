@@ -24,8 +24,8 @@ class DebugTests(TestCase):
         common.env.is_local = self._tmp_is_local
 
     def test_shell(self):
-        from burlap.debug import debug
-        from burlap import shell
+        from burlap.debug import debug # pylint: disable=import-outside-toplevel
+        from burlap import shell # pylint: disable=import-outside-toplevel
 
         debug.verbose = True
         assert debug.genv.is_local

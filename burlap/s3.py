@@ -45,7 +45,7 @@ class S3Satchel(Satchel):
             pip install s3cmd
 
         """
-        from burlap.dj import dj
+        dj = self.get_satchel('dj')
         force = int(force)
 
         r = self.local_renderer
@@ -150,7 +150,7 @@ class S3Satchel(Satchel):
 
             fab local s3.get_or_create_bucket:mybucket
         """
-        from boto.s3 import connection
+        from boto.s3 import connection # pylint: disable=import-outside-toplevel
         if self.dryrun:
             print('boto.connect_s3().create_bucket(%s)' % repr(name))
         else:

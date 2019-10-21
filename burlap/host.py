@@ -14,7 +14,7 @@ from burlap.decorators import task, task_or_dryrun
 from burlap.common import str_to_callable
 
 def iter_hostnames():
-    from burlap.common import get_hosts_retriever, get_verbose
+    from burlap.common import get_hosts_retriever, get_verbose # pylint: disable=import-outside-toplevel
 
     verbose = get_verbose()
 
@@ -352,7 +352,7 @@ class HostnameSatchel(Satchel):
         """
         Yields a list of tuples of the form (ip, hostname).
         """
-        from burlap.common import get_hosts_retriever
+        from burlap.common import get_hosts_retriever # pylint: disable=import-outside-toplevel
         if self.env.use_retriever:
             self.vprint('using retriever')
             self.vprint('hosts:', self.genv.hosts)

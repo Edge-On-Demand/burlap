@@ -35,23 +35,23 @@ class NetworkTests(TestCase):
     @skipIf("TRAVIS" in os.environ and os.environ["TRAVIS"] == "true", "Skipping this test on Travis CI.") #TODO:fix on Travis?
     def test_interfaces_ipv4_addresses(self):
 
-        from burlap.network import interfaces
-        from burlap.network import address
+        from burlap.network import interfaces # pylint: disable=import-outside-toplevel
+        from burlap.network import address # pylint: disable=import-outside-toplevel
 
         for interface in interfaces():
             ipv4_address = address(interface)
             assert is_valid_ipv4_address(ipv4_address)
 
     def test_loopback_interface_exists(self):
-        from burlap.network import interfaces
+        from burlap.network import interfaces # pylint: disable=import-outside-toplevel
         assert 'lo' in interfaces()
 
     def test_loopback_interface_address(self):
-        from burlap.network import address
+        from burlap.network import address # pylint: disable=import-outside-toplevel
         assert address('lo') == '127.0.0.1'
 
     @skipIf("TRAVIS" in os.environ and os.environ["TRAVIS"] == "true", "Skipping this test on Travis CI.") #TODO:fix on Travis?
     def test_name_servers(self):
-        from burlap.network import nameservers
+        from burlap.network import nameservers # pylint: disable=import-outside-toplevel
         for address in nameservers():
             assert is_valid_address(address)

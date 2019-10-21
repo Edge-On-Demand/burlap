@@ -16,6 +16,7 @@ from pipes import quote
 import logging
 import os
 import sys
+import getpass
 
 import pytest
 
@@ -160,7 +161,6 @@ def _target_vagrant_machine():
 
 
 def _target_local_machine():
-    import getpass
     #http://stackoverflow.com/a/16651742/247542
     _set_fabric_env(
         host='127.0.0.1',
@@ -208,14 +208,6 @@ def _clear_fabric_connection_cache():
         del connections[env.host_string]
 
 
-# def _update_package_index():
-#     from burlap.system import distrib_family
-#     family = distrib_family()
-#     if family == 'debian':
-#         #from burlap.require.deb import uptodate_index
-#         uptodate_index()
-
-
 @pytest.fixture(scope='session', autouse=True)
 def allow_sudo_user(setup_package):
     """
@@ -224,8 +216,7 @@ def allow_sudo_user(setup_package):
     Some Vagrant boxes come with a too restrictive sudoers config
     and only allow the vagrant user to run commands as root.
     """
-    #from burlap.require import file as require_file
-    from burlap.files import FileSatchel
+    from burlap.files import FileSatchel # pylint: disable=import-outside-toplevel
     f = FileSatchel()
     f.require(
         '/etc/sudoers.d/burlap',

@@ -102,7 +102,7 @@ class MySQLSatchel(DatabaseSatchel):
         """
         Retrieves the path to the MySQL configuration file.
         """
-        from burlap.system import distrib_id, distrib_release
+        from burlap.system import distrib_id, distrib_release # pylint: disable=import-outside-toplevel
         hostname = self.current_hostname
         if hostname not in self._conf_cache:
             self.env.conf_specifics[hostname] = self.env.conf_default

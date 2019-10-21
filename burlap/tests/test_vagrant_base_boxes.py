@@ -12,7 +12,7 @@ class TestParseVagrantMachineReadableBoxList(TestCase):
                 1391708688,,box-name,precise64
                 1391708688,,box-provider,virtualbox
                 """)
-            from burlap.vagrant import vagrant
+            from burlap.vagrant import vagrant # pylint: disable=import-outside-toplevel
             res = vagrant._box_list_machine_readable()
             self.assertEqual(res, [
 #                 ('lucid32', 'virtualbox'),
@@ -28,7 +28,7 @@ class TestParseVagrantBoxListWithProvider(TestCase):
             mock_local.return_value = textwrap.dedent("""\
                 precise64                 (virtualbox)
                 """)
-            from burlap.vagrant import vagrant
+            from burlap.vagrant import vagrant # pylint: disable=import-outside-toplevel
             res = vagrant._box_list_human_readable()
             self.assertEqual(res, [
 #                 ('lucid32', 'virtualbox'),
@@ -44,7 +44,7 @@ class TestParseVagrantBoxListWithoutProvider(TestCase):
             mock_local.return_value = textwrap.dedent("""\
                 precise64
                 """)
-            from burlap.vagrant import vagrant
+            from burlap.vagrant import vagrant # pylint: disable=import-outside-toplevel
             res = vagrant._box_list_human_readable()
             self.assertEqual(res, [
 #                 ('lucid32', 'virtualbox'),
@@ -60,5 +60,5 @@ class TestVagrantBaseBoxes(TestCase):
                 ('lucid32', 'virtualbox'),
                 ('precise64', 'virtualbox'),
             ]
-            from burlap.vagrant import vagrant
+            from burlap.vagrant import vagrant # pylint: disable=import-outside-toplevel
             self.assertEqual(vagrant.base_boxes(), ['lucid32', 'precise64'])

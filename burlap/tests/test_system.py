@@ -8,13 +8,12 @@ class SystemTests(TestCase):
 
     def test_unsupported_system(self):
 
-        from burlap.system import UnsupportedFamily
+        from burlap.system import UnsupportedFamily # pylint: disable=import-outside-toplevel
 
         with pytest.raises(UnsupportedFamily) as excinfo:
 
             with patch('burlap.system.distrib_id') as mock_distrib_id:
                 mock_distrib_id.return_value = 'foo'
-
                 raise UnsupportedFamily(supported=['debian', 'redhat'])
 
         exception_msg = str(excinfo.value)

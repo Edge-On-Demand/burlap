@@ -36,7 +36,7 @@ class Tox(TestCommand):
         self.test_suite = True
 
     def run_tests(self):
-        import tox
+        import tox # pylint: disable=import-outside-toplevel
         tox.cmdline(self.test_args)
         sys.exit(0)
 

@@ -10,6 +10,7 @@ import importlib
 import pkgutil
 import inspect
 import warnings
+import collections
 from pprint import pprint
 
 import json
@@ -83,7 +84,7 @@ def _get_environ_handler(name, d):
     """
 
     def func(site=None, **kwargs):
-        from fabric import state
+        from fabric import state # pylint: disable=import-outside-toplevel
 
         # We can't auto-set default_site, because that break tasks that have
         # to operate over multiple sites.
@@ -194,7 +195,6 @@ def update_merge(d, u):
 
     http://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
     """
-    import collections
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
             r = update_merge(d.get(k, dict()), v)
@@ -298,7 +298,7 @@ def check_version():
     CHECK_VERSION = 0
     # Lookup most recent remote version.
     try:
-        from six.moves.urllib.request import urlopen
+        from six.moves.urllib.request import urlopen # pylint: disable=import-outside-toplevel
     except ImportError:
         # The only reason this would fail is if it's being run during the initial setup.py install, when dependencies haven't all been installed yet.
         return
