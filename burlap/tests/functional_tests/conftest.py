@@ -101,6 +101,8 @@ def _fix_home_directory():
 def _init_vagrant_machine(base_box):
     path = os.path.join(HERE, 'Vagrantfile')
     contents = """\
+# AUTO-GENERATED. DO NOT EDIT. CHANGES WILL BE OVERWRITTEN.
+# If you want to modify this, edit conftest.py or the settings it uses to generate this file.
 Vagrant.configure(2) do |config|
 
   config.vm.box = "%s"

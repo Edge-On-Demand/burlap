@@ -1,6 +1,5 @@
 import os
 
-import requests
 from fabric.api import settings
 
 from burlap.constants import *
@@ -341,6 +340,7 @@ class BuildBotSatchel(ServiceSatchel):
         This should be called before deployment, to prevent accidental deployment of code
         that hasn't passed automated testing.
         """
+        import requests
 
         if not self.env.check_ok:
             return
@@ -478,8 +478,6 @@ class BuildBotSatchel(ServiceSatchel):
             self.stop()
 
         self.uninstall_cron_check()
-
-        self.uninstall_cron()
 
         r.sudo('rm -Rf {virtualenv_dir} || true')
         r.sudo('rm -Rf {project_dir} || true')

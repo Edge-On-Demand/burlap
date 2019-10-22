@@ -36,6 +36,7 @@ class MySQLSatchel(DatabaseSatchel):
     def packager_system_packages(self):
         return {
             FEDORA: ['mysql-server'],
+            UBUNTU: ['mysql-server', 'libmysqlclient-dev'],
             (UBUNTU, '12.04'): ['mysql-server', 'libmysqlclient-dev'],
             (UBUNTU, '14.04'): ['mysql-server-5.6', 'libmysqlclient-dev'],
             (UBUNTU, '16.04'): ['mysql-server', 'libmysqlclient-dev'],

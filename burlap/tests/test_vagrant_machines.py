@@ -1,3 +1,9 @@
+"""
+Run test with:
+
+    tox -c tox-full.ini -e py37-ubuntu_18_04_64 -- -s burlap/tests/test_vagrant_machines.py::TestVagrantMachines::test_machines_one
+
+"""
 
 from mock import patch
 
