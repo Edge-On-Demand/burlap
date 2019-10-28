@@ -19,7 +19,6 @@ from six import StringIO
 from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
-from burlap.common import get_last_modified_timestamp
 from burlap.trackers import BaseTracker
 
 
