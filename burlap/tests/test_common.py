@@ -17,6 +17,8 @@ from pprint import pprint
 
 import six
 
+from fabric.api import runs_once
+
 from burlap import load_yaml_settings
 from burlap.common import CMD_VAR_REGEX, CMD_ESCAPED_VAR_REGEX, shellquote, all_satchels, Satchel, env, get_satchel, clear_state, save_env, env
 from burlap.decorators import task
@@ -44,7 +46,7 @@ class CommonTests(TestCase):
 
         # Importing ourself register us in sys.modules, which burlap uses to track satchels.
         # This is necessary to instantiate this satchel when running this testcase separately.
-        import test_common # pylint: disable=import-self
+        import test_common # pylint: disable=import-self,import-outside-toplevel
 
         env.hosts = ['localhost']
         env.host_string = env.hosts[0]
@@ -232,7 +234,7 @@ set_by_include3: 'some special setting'
         assert content.count(text) == 1
 
     def test_set_verbose(self):
-        from burlap.common import set_verbose, get_verbose
+        from burlap.common import set_verbose, get_verbose # pylint: disable=import-outside-toplevel
 
         set_verbose(True)
         assert get_verbose()
@@ -247,7 +249,7 @@ set_by_include3: 'some special setting'
         assert not get_verbose()
 
     def test_satchel_ordering(self):
-        from burlap.deploy import deploy as deploy_satchel
+        from burlap.deploy import deploy as deploy_satchel # pylint: disable=import-outside-toplevel
 
         # Purge any pre-existing satchels from global registeries so we only get results for our custom satchels.
         clear_state()
@@ -313,7 +315,7 @@ set_by_include3: 'some special setting'
             c_satchel.unregister()
 
     def test_state_clearing(self):
-        from burlap.common import get_state, clear_state, set_state, all_satchels
+        from burlap.common import get_state, clear_state, set_state, all_satchels # pylint: disable=import-outside-toplevel
 
         actual = sorted(all_satchels.keys())
         print('actual satchels:\n', actual)
@@ -343,9 +345,8 @@ set_by_include3: 'some special setting'
         assert len(all_satchels) == len(expected)
 
     def test_runs_once_clear(self):
-        from fabric.api import runs_once
-        from burlap.debug import debug
-        from burlap.common import runs_once_methods
+        from burlap.debug import debug # pylint: disable=import-outside-toplevel
+        from burlap.common import runs_once_methods # pylint: disable=import-outside-toplevel
 
         a = ['abc']
 

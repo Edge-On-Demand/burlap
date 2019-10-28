@@ -124,7 +124,7 @@ class DeploySatchel(ContainerSatchel):
             if service_name not in self.genv.services:
                 self.vprint('Skipping unused component:', component_name)
                 continue
-            elif components and service_name not in components:
+            if components and service_name not in components:
                 self.vprint('Skipping non-matching component:', component_name)
                 continue
 
@@ -276,7 +276,7 @@ class DeploySatchel(ContainerSatchel):
         """
         Executes all satchel configurators to apply pending changes to the server.
         """
-        from burlap import notifier
+        from burlap import notifier # pylint: disable=import-outside-toplevel
         service = self.get_satchel('service')
         self.lock()
         try:

@@ -166,12 +166,12 @@ class ProjectSatchel(ContainerSatchel):
         Writes a key/value pair to a settings file.
         """
         try:
-            import ruamel.yaml
+            import ruamel.yaml # pylint: disable=import-outside-toplevel
             load_func = ruamel.yaml.round_trip_load
             dump_func = ruamel.yaml.round_trip_dump
         except ImportError:
             print('Warning: ruamel.yaml not available, reverting to yaml package, possible lost of formatting may occur.')
-            import yaml
+            import yaml # pylint: disable=import-outside-toplevel
             load_func = yaml.load
             dump_func = yaml.dump
         settings_fn = path.format(role=role)

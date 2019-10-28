@@ -20,7 +20,6 @@ import inspect
 from collections import namedtuple, OrderedDict
 from pprint import pprint
 from functools import partial
-#from datetime import date
 
 import six
 from six import StringIO
@@ -467,13 +466,10 @@ def format(s, lenv, genv, prefix=None, ignored_variables=None): # pylint: disabl
             raise Exception('Too many variables containing variables.')
 
         var_names = CMD_VAR_REGEX.findall(s)
-#         if verbose:
-#             print('format.s:', s)
-#             print('found var_names:', var_names)
 
         if not var_names:
             break
-        elif set(var_names).issubset(ignored_variables):
+        if set(var_names).issubset(ignored_variables):
             break
 
         # Lookup local and global variable values.
@@ -481,7 +477,7 @@ def format(s, lenv, genv, prefix=None, ignored_variables=None): # pylint: disabl
         for var_name in var_names:
             if var_name in ignored_variables:
                 continue
-            elif var_name in lenv:
+            if var_name in lenv:
                 # Find local variable name in local namespace.
                 if verbose:
                     print('Found %s in lenv.' % var_name)
@@ -2514,7 +2510,7 @@ def save_env():
     for k, v in six.iteritems(env):
         if k.startswith('_'):
             continue
-        elif isinstance(v, (types.GeneratorType, types.ModuleType)):
+        if isinstance(v, (types.GeneratorType, types.ModuleType)):
             continue
         env_default[k] = copy.deepcopy(v)
     return env_default
@@ -2821,7 +2817,6 @@ def iter_sites(sites=None, site=None, renderer=None, setter=None, no_secure=Fals
             sys.stderr.flush()
             sites = [(site, env.sites.get(site))]
 
-    renderer = renderer #or render_remote_paths
     env_default = save_env()
     if callable(role_loader):
         role_loader()
@@ -2831,9 +2826,7 @@ def iter_sites(sites=None, site=None, renderer=None, setter=None, no_secure=Fals
             continue
 
         # Only load site configurations that are allowed for this host.
-        if target_sites is None:
-            pass
-        else:
+        if target_sites is not None:
             assert isinstance(target_sites, (tuple, list))
             if _site not in target_sites:
                 if verbose:

@@ -3,6 +3,9 @@ Helper functions for sending a notification email after each deployment.
 """
 from __future__ import print_function
 
+import smtplib
+from email.mime.text import MIMEText
+
 from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
@@ -23,8 +26,6 @@ class DeploymentNotifierSatchel(Satchel):
         self.env.email_recipient_list = []
 
     def send_email(self, subject, message, from_email=None, recipient_list=None):
-        import smtplib
-        from email.mime.text import MIMEText
 
         recipient_list = recipient_list or []
         if not recipient_list:

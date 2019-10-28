@@ -556,8 +556,7 @@ class DjangoSatchel(Satchel):
                 except ImportError:
                     if ignore_import_error:
                         continue
-                    else:
-                        raise
+                    raise
                 yield app, os.path.dirname(mod.__file__)
         finally:
             os.chdir(_cwd)

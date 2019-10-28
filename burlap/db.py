@@ -5,7 +5,9 @@ import sys
 import subprocess
 from pprint import pprint
 
-from fabric.api import env#, runs_once
+from fabric.api import env
+from fabric import state
+from fabric.task_utils import crawl
 
 from burlap.constants import *
 from burlap import ServiceSatchel
@@ -241,8 +243,6 @@ class DatabaseSatchel(ServiceSatchel):
         """
         Determines if there's enough space to load the target database.
         """
-        from fabric import state
-        from fabric.task_utils import crawl
 
         src_task = crawl(src, state.commands)
         assert src_task, 'Unknown source role: %s' % src

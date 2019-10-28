@@ -2,6 +2,7 @@ from __future__ import print_function
 
 from fabric.tasks import WrappedCallableTask as _WrappedCallableTask
 
+
 class WrappedCallableTask(_WrappedCallableTask):
     """
     A modified version of Fabric's WrappedCallableTask that sets a global

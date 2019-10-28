@@ -34,7 +34,7 @@ class DebugSatchel(ContainerSatchel):
 
     @task
     def list_settings(self, name):
-        from burlap import load_yaml_settings
+        from burlap import load_yaml_settings # pylint: disable=import-outside-toplevel
         load_yaml_settings(name=name, verbose=1)
 
     @task
@@ -189,7 +189,7 @@ class DebugSatchel(ContainerSatchel):
         """
         Opens an SSH connection.
         """
-        from burlap.common import get_hosts_for_site
+        from burlap.common import get_hosts_for_site # pylint: disable=import-outside-toplevel
 
         if dryrun is not None:
             self.dryrun = dryrun

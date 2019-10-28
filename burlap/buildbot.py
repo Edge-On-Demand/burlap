@@ -479,8 +479,6 @@ class BuildBotSatchel(ServiceSatchel):
 
         self.uninstall_cron_check()
 
-        self.uninstall_cron()
-
         r.sudo('rm -Rf {virtualenv_dir} || true')
         r.sudo('rm -Rf {project_dir} || true')
 

@@ -7,7 +7,7 @@
 #
 set -e
 [ -d .env ] && rm -Rf .env
-virtualenv .env
+virtualenv -p python3.7 .env
 . .env/bin/activate
 pip install -r requirements-test.txt
 ./pep8.sh
