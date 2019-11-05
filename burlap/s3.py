@@ -29,10 +29,15 @@ class S3Satchel(Satchel):
 
     def set_defaults(self):
         # {name:[dict(local_path='static/', remote_path='$AWS_BUCKET:/')]}
-        self.env.sync_sets = {}
         self.env.media_postfix = ''
-        self.env.sync_enabled = False
         self.env.s3cmd_path = '{virtualenv_bin_dir}/s3cmd'
+        self.env.sync_sets = {}
+        self.env.sync_enabled = False
+        self.env.sync_template = 'export AWS_ACCESS_KEY_ID={aws_access_key_id}; '\
+                'export AWS_SECRET_ACCESS_KEY={aws_secret_access_key}; '\
+                '{s3cmd_path} {sync_cmd} --progress --acl-public --guess-mime-type --no-mime-magic '\
+                '--delete-removed --cf-invalidate --recursive {sync_force_flag} '\
+                '{local_path} {remote_path}'
 
     @task
     @runs_once
@@ -92,12 +97,7 @@ class S3Satchel(Satchel):
                 r.env.sync_cmd = 'put'
             else:
                 r.env.sync_cmd = 'sync'
-            r.local(
-                'export AWS_ACCESS_KEY_ID={aws_access_key_id}; '\
-                'export AWS_SECRET_ACCESS_KEY={aws_secret_access_key}; '\
-                '{s3cmd_path} {sync_cmd} --progress --acl-public --guess-mime-type --no-mime-magic '\
-                '--delete-removed --cf-invalidate --recursive {sync_force_flag} '\
-                '{local_path} {remote_path}')
+            r.local(r.env.sync_template)
 
     @task
     def invalidate(self, *paths):
@@ -124,12 +124,11 @@ class S3Satchel(Satchel):
             paths = all_paths[i:i+1000]
             if not paths:
                 break
-
-            c = boto.connect_cloudfront()
+            c = boto.connect_cloudfront(_settings.AWS_ACCESS_KEY_ID, _settings.AWS_SECRET_ACCESS_KEY)
             rs = c.get_all_distributions()
             target_dist = None
             for dist in rs:
-                print(dist.domain_name, dir(dist), dist.__dict__)
+                print('Distribution:', dist.domain_name, dir(dist), dist.__dict__)
                 bucket_name = dist.origin.dns_name.replace('.s3.amazonaws.com', '')
                 if bucket_name == _settings.AWS_STATIC_BUCKET_NAME:
                     target_dist = dist
@@ -137,8 +136,11 @@ class S3Satchel(Satchel):
             if not target_dist:
                 raise Exception(('Target distribution %s could not be found in the AWS account.') % (settings.AWS_STATIC_BUCKET_NAME,))
             print('Using distribution %s associated with origin %s.' % (target_dist.id, _settings.AWS_STATIC_BUCKET_NAME))
-            inval_req = c.create_invalidation_request(target_dist.id, paths)
-            print('Issue invalidation request %s.' % (inval_req,))
+            if self.dryrun:
+                print('aws cloudfront create-invalidation --distribution-id=%s --paths=%s' % (target_dist.id, paths))
+            else:
+                inval_req = c.create_invalidation_request(target_dist.id, paths)
+                print('Issue invalidation request %s.' % (inval_req,))
             i += 1000
 
     @task
