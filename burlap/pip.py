@@ -182,10 +182,10 @@ class PIPSatchel(Satchel):
         r.put(local_path=tmp_fn, remote_path=r.env.pip_remote_requirements_fn)
 
         # Ensure we're always using the latest pip.
-        r.run('{virtualenv_dir}/bin/pip {quiet_flag} install -U pip')
+        r.run_or_local('{virtualenv_dir}/bin/pip {quiet_flag} install -U pip')
 
         # Install requirements from file.
-        r.run("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}")
+        r.run_or_local("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}")
 
     @task
     def record_manifest(self):

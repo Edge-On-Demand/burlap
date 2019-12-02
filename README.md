@@ -80,9 +80,9 @@ Most Burlap tasks also support a `verbose` parameter, which will activate additi
     fab <role> some_task:verbose=1
 
 Nearly all of Burlap's built-in tasks run Bash commands behind the scenes. Therefore, by activating dryrun mode and hiding all superfluous output except the generated Bash commands,
-it's possible to convert a Burlap call to a Bash script. To do this, set the environment variable `BURLAP_COMMAND_PREFIX=1`, activate dryrun, and capture the output to a file. e.g.
+it's possible to convert a Burlap call to a Bash script. To do this, set the environment variable `BURLAP_COMMAND_PREFIX=0`, activate dryrun, and capture the output to a file. e.g.
 
-    export BURLAP_COMMAND_PREFIX=1; fab staging some_task:dryrun=1 > myscript.sh
+    BURLAP_COMMAND_PREFIX=0 BURLAP_SHELL_PREFIX=1 fab staging some_task:dryrun=1 > myscript.sh
 
 To run all tests:
 

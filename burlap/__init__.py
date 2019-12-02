@@ -72,7 +72,7 @@ except (ImportError, NameError) as e:
     print('Unable to initialize debug: %s' % e, file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 66)
+VERSION = (0, 9, 67)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
@@ -94,9 +94,9 @@ def _get_environ_handler(name, d):
         BURLAP_SHELL_PREFIX = int(os.environ.get('BURLAP_SHELL_PREFIX', '0'))
         if BURLAP_SHELL_PREFIX:
             print('#!/bin/bash')
-            print('# Generated with:')
+            print('# DO NOT EDIT. AUTO-GENERATED WITH:')
             print('#')
-            print('#     export BURLAP_SHELL_PREFIX=1; export BURLAP_COMMAND_PREFIX=0; fab %s' % (' '.join(sys.argv[1:]),))
+            print('#     BURLAP_SHELL_PREFIX=1 BURLAP_COMMAND_PREFIX=0 fab %s' % (' '.join(sys.argv[1:]),))
             print('#')
 
         BURLAP_COMMAND_PREFIX = int(os.environ.get('BURLAP_COMMAND_PREFIX', '1'))
@@ -124,9 +124,6 @@ def _get_environ_handler(name, d):
         retriever = None
         if env.hosts_retriever:
             # Dynamically retrieve hosts.
-#             module_name = '.'.join(env.hosts_retriever.split('.')[:-1])
-#             func_name = env.hosts_retriever.split('.')[-1]
-#             retriever = getattr(importlib.import_module(module_name), func_name)
             retriever = common.get_hosts_retriever()
             if verbose:
                 print('Using retriever:', env.hosts_retriever, retriever)
@@ -362,11 +359,7 @@ def populate_fabfile():
         locals_['common'] = common
 
         # Put all debug commands into the global namespace.
-
-#         for _debug_name in debug.debug.get_tasks():
-#             print('_debug_name:', _debug_name)
-
-        locals_['shell'] = shell#debug.debug.shell
+        locals_['shell'] = shell
 
         # Put all virtual satchels in the global namespace so Fabric can find them.
         for _module_alias in common.post_import_modules:
@@ -406,7 +399,6 @@ if common and not no_load:
         if module_name.startswith('tests'):
             continue
         __all__.append(module_name)
-#         print('Importing: %s' % module_name, file=sys.stderr)
         module = loader.find_module(module_name).load_module(module_name)
         sub_modules[module_name] = module
 
