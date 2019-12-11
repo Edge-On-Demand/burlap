@@ -20,6 +20,7 @@ class CronSatchel(ServiceSatchel):
     def packager_system_packages(self):
         return {
             FEDORA: ['crontabs'],
+            UBUNTU: ['cron'],
             (UBUNTU, '12.04'): ['cron'],
         }
 

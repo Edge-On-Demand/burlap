@@ -141,6 +141,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             (UBUNTU, '12.04'): ['postgresql-9.1'],
             (UBUNTU, '14.04'): ['postgresql-9.3'],
             (UBUNTU, '16.04'): ['postgresql-10'],
+            (UBUNTU, '18.04'): ['postgresql-11'],
         }
 
     def set_defaults(self):

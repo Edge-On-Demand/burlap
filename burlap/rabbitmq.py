@@ -30,6 +30,7 @@ class RabbitMQSatchel(ServiceSatchel):
     def packager_system_packages(self):
         return {
             FEDORA: ['rabbitmq-server'],
+            UBUNTU: ['rabbitmq-server'],
             (UBUNTU, '12.04'): ['rabbitmq-server'],
             (UBUNTU, '14.04'): ['rabbitmq-server'],
             (UBUNTU, '16.04'): ['rabbitmq-server'],
