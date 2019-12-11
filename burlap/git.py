@@ -44,12 +44,13 @@ class GitSatchel(Satchel):
     def install_hooks(self):
         r = self.local_renderer
         for repo_path, hook_paths in r.env.hooks.items():
+            if repo_path == '.' and self.is_local:
+                repo_path = os.getcwd()
             r.env.repo_path_dot_git = '%s/.git' % repo_path
             assert file.is_dir(r.env.repo_path_dot_git), 'Repo %s does not exist.' % r.env.repo_path_dot_git
             for hook_path in hook_paths:
                 r.env.local_hook_path = fqfn = self.find_template(hook_path)
                 r.env.remote_hook_path = '%s/.git/hooks/%s' % (repo_path, os.path.split(hook_path)[-1])
-                #r.env.remote_hook_dir = '%s/.git/hooks/' % (repo_path,)
                 r.put(local_path=r.env.local_hook_path, remote_path=r.env.remote_hook_path)
                 r.run_or_local('chmod +x {remote_hook_path}')
 

@@ -658,12 +658,14 @@ class DjangoSatchel(Satchel):
     def migrate(self, app='', migration='', site=None, fake=0, ignore_errors=None, skip_databases=None, database=None, migrate_apps='', delete_ghosts=1):
         """
         Runs the standard South migrate command for one or more sites.
+
+        Note, to pass a comma-delimted list in a fab command, escape the comma with a back slash.
+
+        e.g.
+
+            fab staging dj.migrate:migrate_apps=oneapp\,twoapp\,threeapp
+
         """
-    #     Note, to pass a comma-delimted list in a fab command, escape the comma with a back slash.
-    #
-    #         e.g.
-    #
-    #             fab staging dj.migrate:migrate_apps=oneapp\,twoapp\,threeapp
 
         r = self.local_renderer
 
