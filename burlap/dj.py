@@ -656,6 +656,7 @@ class DjangoSatchel(Satchel):
 
     @task
     def migrate(self, app='', migration='', site=None, fake=0, ignore_errors=None, skip_databases=None, database=None, migrate_apps='', delete_ghosts=1):
+        # pylint: disable=anomalous-backslash-in-string
         """
         Runs the standard South migrate command for one or more sites.
 
