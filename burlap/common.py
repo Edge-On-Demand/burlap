@@ -1993,6 +1993,7 @@ def run_or_dryrun(*args, **kwargs):
     dryrun = get_dryrun(kwargs.get('dryrun'))
     if 'dryrun' in kwargs:
         del kwargs['dryrun']
+    ignore_errors = int(kwargs.pop('ignore_errors', 0))
     cmd = args[0] if args else ''
     assert cmd, 'No command specified.'
     if dryrun:
@@ -2001,7 +2002,11 @@ def run_or_dryrun(*args, **kwargs):
         else:
             print(cmd)
     else:
-        return _run(*args, **kwargs)
+        if ignore_errors:
+            with settings(warn_only=True):
+                return _run(*args, **kwargs)
+        else:
+            return _run(*args, **kwargs)
 
 
 def begincap():
