@@ -212,12 +212,6 @@ class RabbitMQSatchel(ServiceSatchel):
                     print('!'*80, file=sys.stderr)
                     print('site:', _site, file=sys.stderr)
 
-                # Only load site configurations that are allowed for this host.
-    #             if target_sites is not None:
-    #                 assert isinstance(target_sites, (tuple, list))
-    #                 if site not in target_sites:
-    #                     continue
-
                 _settings = dj.get_settings(site=_site)
                 if not _settings:
                     continue
@@ -330,6 +324,8 @@ class RabbitMQSatchel(ServiceSatchel):
         lm = self.last_manifest
 
         self.configure_bleeding()
+
+        self.start()
 
         if self.env.auto_purge_mnesia_enabled:
             self.install_purge_script()
