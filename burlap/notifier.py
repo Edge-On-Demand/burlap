@@ -63,6 +63,9 @@ class DeploymentNotifierSatchel(Satchel):
 
     @task
     def notify_deployment(self, is_post_deployment, subject=None, message=None, force=0):
+        """
+        Send email notifying recipients of deploy start or completion.
+        """
         force = int(force)
 
         if is_post_deployment:
@@ -78,11 +81,23 @@ class DeploymentNotifierSatchel(Satchel):
                 body=message.replace('\n', '\\n'),
                 subject=subject,
             ))
-        elif force or (self.env.email_enabled and self.genv.host_string == self.genv.hosts[-1]):
-            self.send_email(
-                subject=subject,
-                message=message,
-                recipient_list=self.env.email_recipient_list)
+        else:
+            if force:
+                do_send_email = True
+            elif not self.env.email_enabled:
+                do_send_email = False
+            elif is_post_deployment and self.genv.host_string == self.genv.hosts[-1]:
+                do_send_email = True
+            elif not is_post_deployment and self.genv.host_string == self.genv.hosts[0]:
+                do_send_email = True
+            else:
+                do_send_email = False
+
+            if do_send_email:
+                self.send_email(
+                    subject=subject,
+                    message=message,
+                    recipient_list=self.env.email_recipient_list)
 
     @task
     def notify_pre_deployment(self, subject=None, message=None, force=0):
