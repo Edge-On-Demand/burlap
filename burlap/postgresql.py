@@ -426,10 +426,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
         external_ip = (r.run('wget http://ipecho.net/plain -O - -q ; echo') or '').strip()
         if r.env.db_root_username == 'postgres' and r.env.db_host == external_ip:
             r.env.db_host = '127.0.0.1'
-        with self.settings(warn_only=True):
-            self.execute(
-                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' "
-                "AND usename != '{db_root_username}' AND application_name != 'psql';", as_db_root_user=True)
+
+        self.execute(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' "
+            "AND usename != '{db_root_username}' AND application_name != 'psql';",
+            name=name, site=site, as_db_root_user=True, ignore_errors=True)
 
     @task
     #@runs_once Interferes with global methods that want to load multiple databases.
@@ -483,31 +484,32 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         # Drop/create schema/db
         if r.env.schema_mt:
-            # db may already exist on multitenant sites. Use warn_only in place of "IF EXISTS" syntax
-            self.execute("CREATE DATABASE {db_name};", as_db_root_user=True, ignore_errors=True, no_db=True)
-            self.execute("DROP SCHEMA IF EXISTS {db_schema} CASCADE;", as_db_root_user=True)
+            # db may already exist on multitenant sites. Use ignore_errors in place of missing "IF EXISTS" syntax
+            self.execute("CREATE DATABASE {db_name};", name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
+            self.execute("DROP SCHEMA IF EXISTS {db_schema} CASCADE;", name=name, site=site, as_db_root_user=True)
         else:
-            r.sudo('dropdb --if-exists --no-password --user={db_root_username} --host={db_host} {db_name}', user=r.env.postgres_user)
-            self.execute("CREATE DATABASE {db_name};", as_db_root_user=True, no_db=True)
+            self.execute("DROP DATABASE IF EXISTS {db_name};", name=name, site=site, as_db_root_user=True, no_db=True)
+            self.execute("CREATE DATABASE {db_name};", name=name, site=site, as_db_root_user=True, no_db=True)
 
         # Create PostGIS extensions
         if r.env.engine == POSTGIS:
-            self.execute("CREATE EXTENSION postgis;", as_db_root_user=True, ignore_errors=True)
-            self.execute("CREATE EXTENSION postgis_topology;", as_db_root_user=True, ignore_errors=True)
+            self.execute("CREATE EXTENSION postgis;", name=name, site=site, as_db_root_user=True, ignore_errors=True)
+            self.execute("CREATE EXTENSION postgis_topology;", name=name, site=site, as_db_root_user=True, ignore_errors=True)
 
         # Reassign user-owned objects to root user and drop user schemas
+        # (user may not exist yet, so ignore errors)
         if not r.env.schema_mt:
             self.execute(
                 "REASSIGN OWNED BY {db_user} TO {db_root_username}; "
-                "DROP OWNED BY {db_user} CASCADE;", as_db_root_user=True, ignore_errors=True)
+                "DROP OWNED BY {db_user} CASCADE;", name=name, site=site, as_db_root_user=True, ignore_errors=True)
 
         # Create db user and assign privileges as appropriate
-        if not self.exists():
+        if not self.exists(name):
             self.execute(
                 "DROP USER IF EXISTS {db_user}; "
-                "CREATE USER {db_user} WITH PASSWORD '{db_password}';", as_db_root_user=True)
+                "CREATE USER {db_user} WITH PASSWORD '{db_password}';", name=name, site=site, as_db_root_user=True)
             if not r.env.schema_mt:
-                self.execute("GRANT ALL PRIVILEGES ON DATABASE {db_name} to {db_user};", as_db_root_user=True)
+                self.execute("GRANT ALL PRIVILEGES ON DATABASE {db_name} to {db_user};", name=name, site=site, as_db_root_user=True)
                 for createlang in r.env.createlangs:
                     r.env.createlang = createlang
                     r.sudo('createlang -U {db_root_username} --host={db_host} {createlang} {db_name} || true', user=r.env.postgres_user)
@@ -517,19 +519,19 @@ class PostgreSQLSatchel(DatabaseSatchel):
             self.execute(
                 "CREATE SCHEMA IF NOT EXISTS {db_schema}; "
                 "GRANT ALL PRIVILEGES ON SCHEMA {db_schema} to {db_user}; "
-                "ALTER ROLE {db_user} SET search_path TO {db_schema};", as_db_root_user=True)
+                "ALTER ROLE {db_user} SET search_path TO {db_schema};", name=name, site=site, as_db_root_user=True)
 
         if not prep_only:
-            if r.env.schema_mt:
-                r.run(r.env.load_command)
-            else:
+            # Run load command (as postgres user, if database is hosted locally)
+            if r.env.db_host in {'localhost', '127.0.0.1'}:
                 r.sudo(r.env.load_command, user=r.env.postgres_user)
+            else:
+                r.run(r.env.load_command)
 
     @task
     def shell(self, name='default', site=None, **kwargs):
         """
-        Opens a SQL shell to the given database, assuming the configured database
-        and user supports this feature.
+        Open a SQL shell to the given database, assuming the configured database and user support this feature.
         """
         r = self.database_renderer(name=name, site=site)
         self.write_pgpass(name=name, site=site, root=True)
