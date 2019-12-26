@@ -355,19 +355,21 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         if as_db_root_user and r.env.db_host in {'localhost', '127.0.0.1'}:
             # Run locally as db root user with sudo -U, relying on pg_hba.conf or other Postgres auth
-            r.sudo(
+            ret = r.sudo(
                 'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} --command="{sql}"',
                 user=r.env.postgres_user, ignore_errors=ignore_errors)
         elif as_db_root_user:
             # Run on remote database as db root user, relying on .pgpass or other Postgres auth
-            r.run(
+            ret = r.run(
                 'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} --command="{sql}"',
                 ignore_errors=ignore_errors)
         else:
             # Run as normal db user, relying on .pgpass or other Postgres auth
-            r.run(
+            ret = r.run(
                 'psql --user={db_user} --no-password --host={db_host} {dbname_arg} --command="{sql}"',
                 ignore_errors=ignore_errors)
+
+        return ret
 
     @task
     def execute_file(self, filename, name='default', site=None, **kwargs):
@@ -389,15 +391,17 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         # Create role/user.
         r.pc('Creating user...')
-        r.run(
-            'psql --user={postgres_user} --no-password --command="CREATE USER {db_user} WITH PASSWORD \'{db_password}\';"',
-            ignore_errors=True)
+        self.execute(
+            "CREATE USER {db_user} WITH PASSWORD '{db_password}';",
+            name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
+        # Grant user role to root role (prevents "must be member of role <db_user>" errors in RDS)
+        self.execute("GRANT {db_user} TO {db_root_username};", name=name, site=site, as_db_root_user=True, no_db=True)
 
         # Create db
         r.pc('Creating database...')
-        ret = r.run('psql --user={postgres_user} --no-password --command="'
-            'CREATE DATABASE {db_name} WITH OWNER={db_user} ENCODING=\'{encoding}\' LC_CTYPE=\'{locale}\' LC_COLLATE=\'{locale}\''
-        '"', ignore_errors=True)
+        ret = self.execute(
+            "CREATE DATABASE {db_name} WITH OWNER={db_user} ENCODING='{encoding}' LC_CTYPE='{locale}' LC_COLLATE='{locale}';",
+            name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
         if isinstance(ret, six.string_types) and 'ERROR:' in ret and 'already exists' not in ret:
             raise Exception('Error creating database: %s' % ret)
 
@@ -405,11 +409,10 @@ class PostgreSQLSatchel(DatabaseSatchel):
             # Create schema
             # This assumes each schema is associated with a unique user.
             r.pc('Creating schema...')
-            r.sudo('psql --user={db_root_username} --host={db_host} --dbname={db_name} -c "'
-                'CREATE SCHEMA IF NOT EXISTS {db_schema}; '
-                'GRANT ALL PRIVILEGES ON SCHEMA {db_schema} to {db_user}; '
-                'ALTER ROLE {db_user} SET search_path TO {db_schema};'
-                '"', user=r.env.postgres_user)
+            self.execute(
+                "CREATE SCHEMA IF NOT EXISTS {db_schema}; "
+                "GRANT ALL PRIVILEGES ON SCHEMA {db_schema} to {db_user}; "
+                "ALTER ROLE {db_user} SET search_path TO {db_schema};", name=name, site=site, as_db_root_user=True)
 
         r.pc('Enabling plpgsql on database...')
         r.run('createlang -U postgres plpgsql {db_name} || true', ignore_errors=True)
