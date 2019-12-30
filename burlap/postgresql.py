@@ -333,7 +333,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
         return ret
 
     @task
-    def execute(self, sql, name='default', site=None, as_db_root_user=False, ignore_errors=False, no_db=False, **kwargs):
+    def execute(self, sql, name='default', site=None, as_db_root_user=False, ignore_errors=False, no_db=False, pager=True, **kwargs):
         """
         Run SQL command with psql.
 
@@ -344,6 +344,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             as_db_root_user (int/bool): If truthy, run as db_root_username; otherwise, run as db_user
             ignore_errors (int/bool): If truthy, wrap task in settings(warn_only=True)
             no_db (int/bool): If truthy, omit --dbname argument (as when creating a database)
+            pager (int/bool): If falsy, disable psql pager, to prevent interactive less-style prompt.
         """
         r = self.database_renderer(name=name, site=site)
 
@@ -352,21 +353,22 @@ class PostgreSQLSatchel(DatabaseSatchel):
             sql += ';' # Terminate SQL statements with semicolon
         r.env.sql = sql
         r.env.dbname_arg = '' if no_db else f'--dbname {r.env.db_name}'
+        r.env.pager_arg = '' if pager else '-P pager=off'
 
         if as_db_root_user and r.env.db_host in {'localhost', '127.0.0.1'}:
             # Run locally as db root user with sudo -U, relying on pg_hba.conf or other Postgres auth
             ret = r.sudo(
-                'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} --command="{sql}"',
+                'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
                 user=r.env.postgres_user, ignore_errors=ignore_errors)
         elif as_db_root_user:
             # Run on remote database as db root user, relying on .pgpass or other Postgres auth
             ret = r.run(
-                'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} --command="{sql}"',
+                'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
                 ignore_errors=ignore_errors)
         else:
             # Run as normal db user, relying on .pgpass or other Postgres auth
             ret = r.run(
-                'psql --user={db_user} --no-password --host={db_host} {dbname_arg} --command="{sql}"',
+                'psql --user={db_user} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
                 ignore_errors=ignore_errors)
 
         return ret
