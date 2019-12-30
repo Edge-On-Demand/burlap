@@ -555,8 +555,6 @@ class ApacheSatchel(ServiceSatchel):
         """
         Configures Apache to host one or more websites.
         """
-        from burlap import service
-
         r = self.local_renderer
 
         print('Configuring Apache...', file=sys.stderr)
