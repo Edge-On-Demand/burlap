@@ -274,10 +274,6 @@ class ApacheSatchel(ServiceSatchel):
         # r.env.wsgi_processes = 5
         r.env.wsgi_server_memory_gb = 8
 
-        verbose = self.verbose
-
-        all_sites = list(self.iter_sites(site=ALL, setter=self.set_site_specifics))
-
         # (current_mem/current_sites)/current_process = ()
         # (16/x)/(8/16) = y
         # (16/x)*(16/8) = y
@@ -431,8 +427,10 @@ class ApacheSatchel(ServiceSatchel):
                 r.env.tmp_chmod = paths.get('chmod', r.env.chmod)
                 r.sudo('mkdir -p {apache_sync_remote_path}')
                 r.sudo('chmod -R {apache_tmp_chmod} {apache_sync_remote_path}')
-                r.local('rsync -rvz --progress --recursive --no-p --no-g '
-                        '--rsh "ssh -o StrictHostKeyChecking=no -i {key_filename}" {apache_sync_local_path} {user}@{host_string}:{apache_sync_remote_path}')
+                r.env.v_flag = 'v' if self.verbose else ''
+                r.local(
+                    'rsync -r{v_flag}z --info=progress2 --recursive --no-p --no-g --rsh "ssh -o StrictHostKeyChecking=no -i '
+                    '{key_filename}" {apache_sync_local_path} {user}@{host_string}:{apache_sync_remote_path}')
                 r.sudo('chown -R {apache_web_user}:{apache_web_group} {apache_sync_remote_path}')
 
         if iter_local_paths:
@@ -557,8 +555,6 @@ class ApacheSatchel(ServiceSatchel):
         """
         Configures Apache to host one or more websites.
         """
-        from burlap import service
-
         r = self.local_renderer
 
         print('Configuring Apache...', file=sys.stderr)
