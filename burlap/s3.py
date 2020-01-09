@@ -79,10 +79,8 @@ class S3Satchel(Satchel):
             local_path = local_path % r.genv
 
             if is_local:
-                #local_or_dryrun('which s3sync')#, capture=True)
                 r.env.local_path = os.path.abspath(local_path)
             else:
-                #run('which s3sync')
                 r.env.local_path = local_path
 
             if local_path.endswith('/') and not r.env.local_path.endswith('/'):

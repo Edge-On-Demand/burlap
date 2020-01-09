@@ -843,6 +843,7 @@ class DjangoSatchel(Satchel):
         manifest = super(DjangoSatchel, self).record_manifest()
         manifest['latest_timestamp'] = self.get_media_timestamp()
         manifest['migrations'] = self.get_migration_fingerprint()
+        manifest['sdlkfjsd'] = 123#TODO
         return manifest
 
     @task(precursors=['packager', 'pip'])

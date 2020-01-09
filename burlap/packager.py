@@ -99,14 +99,14 @@ class PackagerSatchel(Satchel):
                 and (not package_name or _.strip() == package_name)
             ]
         if update:
-            self.sudo_or_dryrun('yum update --assumeyes')
+            self.sudo('yum update --assumeyes')
         if package_name:
-            self.sudo_or_dryrun('yum install --assumeyes %s' % package_name)
+            self.sudo('yum install --assumeyes %s' % package_name)
         else:
             if self.genv.is_local:
-                self.put_or_dryrun(local_path=yum_req_fn)
+                self.put(local_path=yum_req_fn)
                 yum_req_fn = self.genv.put_remote_fn
-            self.sudo_or_dryrun('yum install --assumeyes $(cat %(yum_req_fn)s)' % yum_req_fn)
+            self.sudo('yum install --assumeyes $(cat %(yum_req_fn)s)' % yum_req_fn)
 
     @task
     def install_custom(self, *args, **kwargs):

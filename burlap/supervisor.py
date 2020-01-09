@@ -19,55 +19,6 @@ from burlap.constants import *
 from burlap import ServiceSatchel
 from burlap.decorators import task
 
-# def reload_config():
-#     """
-#     Reload supervisor configuration.
-#     """
-#     run_as_root("supervisorctl reload")
-#
-#
-# def update_config():
-#     """
-#     Reread and update supervisor job configurations.
-#
-#     Less heavy-handed than a full reload, as it doesn't restart the
-#     backend supervisor process and all managed processes.
-#     """
-#     run_as_root("supervisorctl update")
-#
-#
-# def process_status(name):
-#     """
-#     Get the status of a supervisor process.
-#     """
-#     with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
-#         res = run_as_root("supervisorctl status {name}" % locals())
-#         if res.startswith("No such process"):
-#             return None
-#         else:
-#             return res.split()[1]
-#
-#
-# def start_process(name):
-#     """
-#     Start a supervisor process
-#     """
-#     run_as_root("supervisorctl start {name}" % locals())
-#
-#
-# def stop_process(name):
-#     """
-#     Stop a supervisor process
-#     """
-#     run_as_root("supervisorctl stop {name}" % locals())
-#
-#
-# def restart_process(name):
-#     """
-#     Restart a supervisor process
-#     """
-#     run_as_root("supervisorctl restart {name}" % locals())
-
 
 class SupervisorSatchel(ServiceSatchel):
 
@@ -228,13 +179,13 @@ class SupervisorSatchel(ServiceSatchel):
                     remote_fn = os.path.join(self.env.conf_dir, conf_name)
                     if int(upload):
                         local_fn = self.write_to_file(conf_content)
-                        self.put_or_dryrun(local_path=local_fn, remote_path=remote_fn, use_sudo=True)
+                        self.put(local_path=local_fn, remote_path=remote_fn, use_sudo=True)
 
         self.env.services_rendered = '\n'.join(supervisor_services)
 
         if int(upload):
             fn = self.render_to_file(self.env.config_template)
-            self.put_or_dryrun(local_path=fn, remote_path=self.env.config_path, use_sudo=True)
+            self.put(local_path=fn, remote_path=self.env.config_path, use_sudo=True)
 
     def deploy_services(self, site=None):
         """

@@ -1,12 +1,8 @@
 from __future__ import print_function
 
 import os
-import datetime
 import socket
 from pprint import pprint
-import time
-
-import yaml
 
 import six
 
@@ -14,15 +10,9 @@ from fabric.api import (
     env,
     require,
     runs_once,
-    settings,
 )
 
 from burlap import common
-from burlap.common import (
-    run_or_dryrun,
-    local_or_dryrun,
-    get_dryrun,
-)
 from burlap import constants as c
 from burlap.decorators import task_or_dryrun
 
@@ -34,9 +24,6 @@ except ImportError:
 
 EC2 = 'ec2'
 KVM = 'kvm'
-
-#env.vm_type = None
-#env.vm_group = None
 
 if 'vm_name_tag' not in env:
 
@@ -379,151 +366,6 @@ def list_security_groups():
     for sg in sorted(sgs, key=lambda o: o.name):
         print('%s,%s,%s' % (sg.id, sg.name, len(sg.instances())))
 
-def get_or_create_ec2_instance(name=None, group=None, release=None, verbose=0, backend_opts=None):
-    """
-    Creates a new EC2 instance.
-
-    You should normally run get_or_create() instead of directly calling this.
-    """
-    from burlap.common import shelf, OrderedDict
-    from boto.exception import EC2ResponseError
-
-    assert name, "A name must be specified."
-
-    backend_opts = backend_opts or {}
-
-    verbose = int(verbose)
-
-    conn = get_ec2_connection()
-
-    security_groups = get_or_create_ec2_security_groups()
-    security_group_ids = [_.id for _ in security_groups]
-    if verbose:
-        print('security_groups:', security_group_ids)
-
-    pem_path = get_or_create_ec2_key_pair()
-
-    assert env.vm_ec2_ami, 'No AMI specified.'
-    print('Creating EC2 instance from %s...' % (env.vm_ec2_ami,))
-    print(env.vm_ec2_zone)
-    opts = backend_opts.get('run_instances', {})
-    reservation = conn.run_instances(
-        env.vm_ec2_ami,
-        key_name=env.vm_ec2_keypair_name,
-        #security_groups=env.vm_ec2_selected_security_groups,#conflicts with subnet_id?!
-        security_group_ids=security_group_ids,
-        placement=env.vm_ec2_zone,
-        instance_type=env.vm_ec2_instance_type,
-        subnet_id=env.vm_ec2_subnet_id,
-        **opts
-    )
-    instance = reservation.instances[0]
-
-    # Name new instance.
-    # Note, creation is not instantious, so we may have to wait for a moment
-    # before we can access it.
-    while 1:
-        try:
-            if name:
-                instance.add_tag(env.vm_name_tag, name)
-            if group:
-                instance.add_tag(env.vm_group_tag, group)
-            if release:
-                instance.add_tag(env.vm_release_tag, release)
-            break
-        except EC2ResponseError as e:
-            #print('Unable to set tag: %s' % e)
-            print('Waiting for the instance to be created...')
-            if verbose:
-                print(e)
-            time.sleep(3)
-
-    # Assign IP.
-    allocation_id = None
-    if env.vm_ec2_use_elastic_ip:
-        # Initialize name/ip mapping since we can't tag elastic IPs.
-        shelf.setdefault('vm_elastic_ip_mappings', OrderedDict())
-        vm_elastic_ip_mappings = shelf.get('vm_elastic_ip_mappings')
-        elastic_ip = vm_elastic_ip_mappings.get(name)
-        if not elastic_ip:
-            print('Allocating new elastic IP address...')
-            addr = conn.allocate_address(domain=env.vm_ec2_allocate_address_domain)
-            #allocation_id = addr.allocation_id
-            #print('allocation_id:',allocation_id)
-            elastic_ip = addr.public_ip
-            print('Allocated address %s.' % elastic_ip)
-            vm_elastic_ip_mappings[name] = str(elastic_ip)
-            shelf.set('vm_elastic_ip_mappings', vm_elastic_ip_mappings)
-            #conn.get_all_addresses()
-
-        # Lookup allocation_id.
-        all_eips = conn.get_all_addresses()
-        for eip in all_eips:
-            if elastic_ip == eip.public_ip:
-                allocation_id = eip.allocation_id
-                break
-        print('allocation_id:', allocation_id)
-
-        while 1:
-            try:
-                conn.associate_address(
-                    instance_id=instance.id,
-                    #public_ip=elastic_ip,
-                    allocation_id=allocation_id, # needed for VPC instances
-                    )
-                print('IP address associated!')
-                break
-            except EC2ResponseError as e:
-                #print('Unable to assign IP: %s' % e)
-                print('Waiting to associate IP address...')
-                if verbose:
-                    print(e)
-                time.sleep(3)
-
-    # Confirm public DNS name was assigned.
-    while 1:
-        try:
-            instance = get_all_ec2_instances(instance_ids=[instance.id])[0]
-            #assert instance.public_dns_name, 'No public DNS name found!'
-            if instance.public_dns_name:
-                break
-        except Exception as e:
-            print('error:', e)
-        except SystemExit as e:
-            print('systemexit:', e)
-        print('Waiting for public DNS name to be assigned...')
-        time.sleep(3)
-
-    # Confirm we can SSH into the server.
-    #TODO:better handle timeouts? try/except doesn't really work?
-    env.connection_attempts = 10
-    while 1:
-        try:
-            with settings(warn_only=True):
-                env.host_string = instance.public_dns_name
-                ret = run_or_dryrun('who -b')
-                #print 'ret.return_code:',ret.return_code
-                if not ret.return_code:
-                    break
-        except Exception as e:
-            print('error:', e)
-        except SystemExit as e:
-            print('systemexit:', e)
-        print('Waiting for sshd to accept connections...')
-        time.sleep(3)
-
-    print("")
-    print("Login with: ssh -o StrictHostKeyChecking=no -i %s %s@%s" \
-        % (pem_path, env.user, instance.public_dns_name))
-    print("OR")
-    print("fab %(ROLE)s:hostname=%(name)s shell" % dict(name=name, ROLE=env.ROLE))
-
-    ip = socket.gethostbyname(instance.public_dns_name)
-    print("")
-    print("""Example hosts entry:)
-%(ip)s    www.mydomain.com # %(name)s""" % dict(ip=ip, name=name))
-    return instance
-
 @task_or_dryrun
 def exists(name=None, group=None, release=None, except_release=None, verbose=1):
     """
@@ -544,89 +386,6 @@ def exists(name=None, group=None, release=None, except_release=None, verbose=1):
     return instances
 
 @task_or_dryrun
-def get_or_create(name=None, group=None, config=None, extra=0, verbose=0, backend_opts=None):
-    """
-    Creates a virtual machine instance.
-    """
-    require('vm_type', 'vm_group')
-
-    backend_opts = backend_opts or {}
-
-    verbose = int(verbose)
-    extra = int(extra)
-
-    if config:
-        config_fn = common.find_template(config)
-        config = yaml.load(open(config_fn), Loader=yaml.SafeLoader)
-        env.update(config)
-
-    env.vm_type = (env.vm_type or '').lower()
-    assert env.vm_type, 'No VM type specified.'
-
-    group = group or env.vm_group
-    assert group, 'No VM group specified.'
-
-    ret = exists(name=name, group=group)
-    if not extra and ret:
-        if verbose:
-            print('VM %s:%s exists.' % (name, group))
-        return ret
-
-    today = datetime.date.today()
-    release = int('%i%02i%02i' % (today.year, today.month, today.day))
-
-    if not name:
-        existing_instances = list_instances(
-            group=group,
-            release=release,
-            verbose=verbose)
-        name = env.vm_name_template.format(index=len(existing_instances)+1)
-
-    if env.vm_type == EC2:
-        return get_or_create_ec2_instance(
-            name=name,
-            group=group,
-            release=release,
-            verbose=verbose,
-            backend_opts=backend_opts)
-
-    raise NotImplementedError
-
-@task_or_dryrun
-def delete(name=None, group=None, release=None, except_release=None,
-    dryrun=1, verbose=1):
-    """
-    Permanently erase one or more VM instances from existence.
-    """
-
-    verbose = int(verbose)
-
-    if env.vm_type == EC2:
-        conn = get_ec2_connection()
-
-        instances = list_instances(
-            name=name,
-            group=group,
-            release=release,
-            except_release=except_release,
-        )
-
-        for instance_name, instance_data in instances.items():
-            public_dns_name = instance_data['public_dns_name']
-            print('\nDeleting %s (%s)...' \
-                % (instance_name, instance_data['id']))
-            if not get_dryrun():
-                conn.terminate_instances(instance_ids=[instance_data['id']])
-
-            # Clear host key on localhost.
-            known_hosts = os.path.expanduser('~/.ssh/known_hosts')
-            cmd = 'ssh-keygen -f "%s" -R %s' % (known_hosts, public_dns_name)
-            local_or_dryrun(cmd)
-
-    else:
-        raise NotImplementedError
-
-@task_or_dryrun
 def get_name():
     """
     Retrieves the instance name associated with the current host string.
@@ -638,19 +397,6 @@ def get_name():
                 return name
     else:
         raise NotImplementedError
-
-@task_or_dryrun
-def respawn(name=None, group=None):
-    """
-    Deletes and recreates one or more VM instances.
-    """
-
-    if name is None:
-        name = get_name()
-
-    delete(name=name, group=group)
-    instance = get_or_create(name=name, group=group)
-    env.host_string = instance.public_dns_name
 
 @task_or_dryrun
 def shutdown(force=False):
