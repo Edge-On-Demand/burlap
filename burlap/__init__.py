@@ -2,6 +2,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import copy
+import logging
 import os
 import re
 import sys
@@ -77,6 +78,9 @@ __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
 no_load = int(os.environ.get('BURLAP_NO_LOAD', 0))
+
+# Silence INFO-level Paramiko noise
+logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 def _get_environ_handler(name, d):
     """
