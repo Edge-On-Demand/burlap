@@ -338,7 +338,7 @@ class FileSatchel(ContainerSatchel):
 
     @task
     def upload(self, src, dst=None):
-        dst = self.put_or_dryrun(local_path=src, remote_path=dst)
+        dst = self.put(local_path=src, remote_path=dst)
         print('Uploaded to %s' % (dst,))
 
     @task

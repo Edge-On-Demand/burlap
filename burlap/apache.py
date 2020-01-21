@@ -325,21 +325,21 @@ class ApacheSatchel(ServiceSatchel):
             site_secure = _site
             self.set_site_specifics(site_secure)
 
-            self.sudo_or_dryrun('mkdir -p %(apache_ssl_dir)s' % self.genv)
+            self.sudo('mkdir -p %(apache_ssl_dir)s' % self.genv)
 
             if self.genv.apache_ssl:
                 for cert_type, local_cert_file, remote_cert_file in self.iter_certificates():
                     if verbose:
                         print('=' * 80)
                         print('Installing certificate %s->%s...' % (local_cert_file, remote_cert_file,))
-                    self.put_or_dryrun(
+                    self.put(
                         local_path=local_cert_file,
                         remote_path=remote_cert_file,
                         use_sudo=True)
 
-        self.sudo_or_dryrun('mkdir -p %(apache_ssl_dir)s' % self.genv)
-        self.sudo_or_dryrun('chown -R %(apache_web_user)s:%(apache_web_group)s %(apache_ssl_dir)s' % self.genv)
-        self.sudo_or_dryrun('chmod -R %(apache_ssl_chmod)s %(apache_ssl_dir)s' % self.genv)
+        self.sudo('mkdir -p %(apache_ssl_dir)s' % self.genv)
+        self.sudo('chown -R %(apache_web_user)s:%(apache_web_group)s %(apache_ssl_dir)s' % self.genv)
+        self.sudo('chmod -R %(apache_ssl_chmod)s %(apache_ssl_dir)s' % self.genv)
 
     @task
     def install_auth_basic_user_file(self, site=None):

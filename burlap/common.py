@@ -46,6 +46,7 @@ from .constants import *
 from .utils import get_file_hash
 from .shelf import Shelf
 from .decorators import task
+from .exceptions import SatchelDoesNotExist
 
 if hasattr(fabric.api, '_run'):
     _run = fabric.api._run
@@ -699,8 +700,13 @@ class GlobalRenderer(Renderer):
 
     env_type = 'genv'
 
+
 def get_satchel(name):
-    return all_satchels[name.strip().upper()]
+    name = name.strip().upper()
+    if name in all_satchels:
+        return all_satchels[name]
+    raise SatchelDoesNotExist(f'Satchel "{name}" does not exist.')
+
 
 def reset_all_satchels():
     for name, satchel in all_satchels.items():
@@ -819,6 +825,18 @@ class Satchel:
         if _key not in env:
             env[_key] = True
             self.set_defaults()
+
+    def init_burlap_data_dir(self):
+        d = env.burlap_data_dir
+        print('env.plan_storage:', env.plan_storage)
+        if env.plan_storage == 'local':
+            if not os.path.isdir(env.burlap_data_dir):
+                os.mkdir(d)
+        else:
+            if not d.startswith('/'):
+                d = '/home/%s/%s' % (env.user, d)
+            self.sudo('mkdir -p "{directory}"; chown -R {user}:{user} {directory}'.format(user=env.user, directory=d))
+        return d
 
     @staticmethod
     def reset_all_satchels():
@@ -1133,31 +1151,213 @@ class Satchel:
     def render_to_string(self, *args, **kwargs):
         return render_to_string(*args, **kwargs)
 
-    def reboot_or_dryrun(self, *args, **kwargs):
-        """
-        Reboots the server and waits for it to come back.
-        """
-        warnings.warn('Use self.run() instead.', DeprecationWarning, stacklevel=2)
-        self.reboot(*args, **kwargs)
-
     @task
     def reboot(self, *args, **kwargs):
         """
-        Reboots the server and waits for it to come back.
+        An improved version of fabric.operations.reboot with better error handling.
         """
-        reboot_or_dryrun(*args, **kwargs)
+        from fabric.state import connections
+
+        verbose = get_verbose()
+
+        dryrun = get_dryrun(kwargs.get('dryrun'))
+
+        # Use 'wait' as max total wait time
+        kwargs.setdefault('wait', 120)
+        wait = int(kwargs['wait'])
+
+        command = kwargs.get('command', 'reboot')
+
+        now = int(kwargs.get('now', 0))
+        print('now:', now)
+        if now:
+            command += ' now'
+
+        # Shorter timeout for a more granular cycle than the default.
+        timeout = int(kwargs.get('timeout', 30))
+
+        reconnect_hostname = kwargs.pop('new_hostname', env.host_string)
+
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+
+        if dryrun:
+            print('%s sudo: %s' % (render_command_prefix(), command))
+        else:
+            if is_local():
+                if six.moves.input('reboot localhost now? ').strip()[0].lower() != 'y':
+                    return
+
+            attempts = int(round(float(wait) / float(timeout)))
+            # Don't bleed settings, since this is supposed to be self-contained.
+            # User adaptations will probably want to drop the "with settings()" and
+            # just have globally set timeout/attempts values.
+            with settings(warn_only=True):
+                _sudo(command)
+
+            env.host_string = reconnect_hostname
+            success = False
+            for attempt in six.moves.range(attempts):
+
+                # Try to make sure we don't slip in before pre-reboot lockdown
+                if verbose:
+                    print('Waiting for %s seconds, wait %i of %i' % (timeout, attempt+1, attempts))
+                time.sleep(timeout)
+
+                # This is actually an internal-ish API call, but users can simply drop
+                # it in real fabfile use -- the next run/sudo/put/get/etc call will
+                # automatically trigger a reconnect.
+                # We use it here to force the reconnect while this function is still in
+                # control and has the above timeout settings enabled.
+                try:
+                    if verbose:
+                        print('Reconnecting to:', env.host_string)
+                    # This will fail until the network interface comes back up.
+                    connections.connect(env.host_string)
+                    # This will also fail until SSH is running again.
+                    with settings(timeout=timeout):
+                        _run('echo hello')
+                    success = True
+                    break
+                except Exception as e:
+                    print('Exception:', e)
+
+            if not success:
+                raise Exception('Reboot failed or took longer than %s seconds.' % wait)
+
+
+    def run_as_root(self, command, *args, **kwargs):
+        """
+        Run a remote command as the root user.
+
+        When connecting as root to the remote system, this will use Fabric's
+        ``run`` function. In other cases, it will use ``sudo``.
+        """
+        if env.user == 'root':
+            func = self.run
+        else:
+            func = self.sudo
+        return func(command, *args, **kwargs)
 
     def enable_attr(self, *args, **kwargs):
-        return enable_attribute_or_dryrun(*args, **kwargs)
+        """
+        Similar to append() but ensures a line containing a key-value pair exists and is enabled.
+        """
+        dryrun = get_dryrun(kwargs.get('dryrun'))
+
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+
+        use_sudo = kwargs.pop('use_sudo', False)
+        run_cmd = self.sudo if use_sudo else self.run
+        run_cmd_str = 'sudo' if use_sudo else 'run'
+
+        key = args[0] if len(args) >= 1 else kwargs.pop('key')
+
+        value = str(args[1] if len(args) >= 2 else kwargs.pop('value'))
+
+        filename = args[2] if len(args) >= 3 else kwargs.pop('filename')
+
+        comment_pattern = args[3] if len(args) >= 4 else kwargs.pop('comment_pattern', r'#\s*')
+
+        equals_pattern = args[4] if len(args) >= 5 else kwargs.pop('equals_pattern', r'\s*=\s*')
+
+        equals_literal = args[5] if len(args) >= 6 else kwargs.pop('equals_pattern', '=')
+
+        context = dict(
+            key=key,
+            value=value,
+            uncommented_literal='%s%s%s' % (key, equals_literal, value), # key=value
+            uncommented_pattern='%s%s%s' % (key, equals_pattern, value), # key = value
+            uncommented_pattern_partial='^%s%s[^\\n]*' % (key, equals_pattern), # key=
+            commented_pattern='%s%s%s%s' % (comment_pattern, key, equals_pattern, value), # #key=value
+            commented_pattern_partial='^%s%s%s[^\\n]*' % (comment_pattern, key, equals_pattern), # #key=
+            filename=filename,
+            backup=filename+'.bak',
+            comment_pattern=comment_pattern,
+            equals_pattern=equals_pattern,
+        )
+
+        cmds = [
+            # Replace partial commented text with full un-commented text.
+            'sed -i -r -e "s/{commented_pattern_partial}/{uncommented_literal}/g" {filename}'.format(**context),
+            # Replace partial un-commented text with full un-commented text.
+            'sed -i -r -e "s/{uncommented_pattern_partial}/{uncommented_literal}/g" {filename}'.format(**context),
+            # Replace commented text with un-commented text.
+            'sed -i -r -e "s/{commented_pattern}/{uncommented_literal}/g" {filename}'.format(**context),
+            # If uncommented text still does not exist, append it.
+            'grep -qE "{uncommented_pattern}" {filename} || echo "{uncommented_literal}" >> {filename}'.format(**context),
+        ]
+
+        if dryrun:
+            for cmd in cmds:
+                if BURLAP_COMMAND_PREFIX:
+                    print('%s %s: %s' % (render_command_prefix(), run_cmd_str, cmd))
+                else:
+                    print(cmd)
+        else:
+            for cmd in cmds:
+                run_cmd(cmd)
 
     def disable_attr(self, *args, **kwargs):
-        return disable_attribute_or_dryrun(*args, **kwargs)
+        """
+        Comments-out a line containing an attribute.
+        The inverse of enable_att().
+        """
+        dryrun = get_dryrun(kwargs.get('dryrun'))
+
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+
+        use_sudo = kwargs.pop('use_sudo', False)
+        run_cmd = self.sudo if use_sudo else self.run
+        run_cmd_str = 'sudo' if use_sudo else 'run'
+
+        key = args[0] if len(args) >= 1 else kwargs.pop('key')
+
+        filename = args[1] if len(args) >= 2 else kwargs.pop('filename')
+
+        comment_pattern = args[2] if len(args) >= 3 else kwargs.pop('comment_pattern', r'#\s*')
+
+        equals_pattern = args[3] if len(args) >= 4 else kwargs.pop('equals_pattern', r'\s*=\s*')
+
+        equals_literal = args[4] if len(args) >= 5 else kwargs.pop('equals_pattern', '=')
+
+        context = dict(
+            key=key,
+            uncommented_literal='%s%s' % (key, equals_literal), # key=value
+            uncommented_pattern='%s%s' % (key, equals_pattern), # key = value
+            uncommented_pattern_partial='^%s%s[^\\n]*' % (key, equals_pattern), # key=
+            commented_pattern='%s%s%s' % (comment_pattern, key, equals_pattern), # #key=value
+            commented_pattern_partial='^%s%s%s[^\\n]*' % (comment_pattern, key, equals_pattern), # #key=
+            filename=filename,
+            backup=filename+'.bak',
+            comment_pattern=comment_pattern,
+            equals_pattern=equals_pattern,
+        )
+
+        cmds = [
+            # Replace partial un-commented text with full commented text.
+            'sed -i -r -e "s/{uncommented_pattern_partial}//g" {filename}'.format(**context),
+        ]
+
+        if dryrun:
+            for cmd in cmds:
+                if BURLAP_COMMAND_PREFIX:
+                    print('%s %s: %s' % (render_command_prefix(), run_cmd_str, cmd))
+                else:
+                    print(cmd)
+        else:
+            for cmd in cmds:
+                run_cmd(cmd)
 
     def write_to_file(self, *args, **kwargs):
         return write_to_file(*args, **kwargs)
 
-    def upload_content(self, *args, **kwargs):
-        return upload_content(*args, **kwargs)
+    def upload_content(self, content, fn, **kwargs):
+        tmp_fn = write_to_file(content=content, **kwargs)
+        use_sudo = kwargs.pop('use_sudo', env.host_string not in LOCALHOSTS)
+        self.put(local_path=tmp_fn, remote_path=fn, use_sudo=use_sudo)
 
     def find_template(self, template):
         return find_template(template)
@@ -1166,10 +1366,19 @@ class Satchel:
         return get_template_contents(template)
 
     def install_script(self, *args, **kwargs):
-        return install_script(*args, **kwargs)
+        self.install_config(*args, **kwargs)
+        self.sudo('chmod +x %s' % env.put_remote_path)
 
-    def install_config(self, *args, **kwargs):
-        return install_config(*args, **kwargs)
+    def install_config(self, local_path=None, remote_path=None, render=True, extra=None, formatter=None):
+        """
+        Returns a template to a remote file.
+        If no filename given, a temporary filename will be generated and returned.
+        """
+        local_path = find_template(local_path)
+        if render:
+            extra = extra or {}
+            local_path = self.render_to_file(template=local_path, extra=extra, formatter=formatter)
+        self.put(local_path=local_path, remote_path=remote_path, use_sudo=True)
 
     def set_site_specifics(self, site):
         """
@@ -1288,9 +1497,9 @@ class Satchel:
         if package_list:
             package_list_str = ' '.join(package_list)
             if os_version.distro == UBUNTU:
-                self.sudo_or_dryrun('apt-get purge %s' % package_list_str)
+                self.sudo('apt-get purge %s' % package_list_str)
             elif os_version.distro == FEDORA:
-                self.sudo_or_dryrun('yum remove %s' % package_list_str)
+                self.sudo('yum remove %s' % package_list_str)
             else:
                 raise NotImplementedError('Unknown distro: %s' % os_version.distro)
 
@@ -1298,37 +1507,150 @@ class Satchel:
         # Override to specify custom defaults.
         pass
 
-    def render_to_file(self, *args, **kwargs):
-        return render_to_file(*args, **kwargs)
+    def render_to_file(self, template, fn=None, extra=None, **kwargs):
+        """
+        Returns a template to a local file.
+        If no filename given, a temporary filename will be generated and returned.
+        """
+        import tempfile
+        dryrun = self.dryrun
+        append_newline = kwargs.pop('append_newline', True)
+        style = kwargs.pop('style', 'cat') # |echo
+        formatter = kwargs.pop('formatter', None)
+        content = render_to_string(template, extra=extra)
+        if append_newline and not content.endswith('\n'):
+            content += '\n'
 
-    def put_or_dryrun(self, *args, **kwargs):
-        warnings.warn('Use self.put() instead.', DeprecationWarning, stacklevel=2)
-        return put_or_dryrun(*args, **kwargs)
+        if formatter and callable(formatter):
+            content = formatter(content)
+
+        if dryrun:
+            if not fn:
+                fd, fn = tempfile.mkstemp()
+                fout = os.fdopen(fd, 'wt')
+                fout.close()
+        else:
+            if fn:
+                fout = open(fn, 'w')
+            else:
+                fd, fn = tempfile.mkstemp()
+                fout = os.fdopen(fd, 'wt')
+            fout.write(content)
+            fout.close()
+        assert fn
+
+        if style == 'cat':
+            cmd = 'cat <<EOF > %s\n%s\nEOF' % (fn, content)
+        elif style == 'echo':
+            cmd = 'echo -e %s > %s' % (shellquote(content), fn)
+        else:
+            raise NotImplementedError
+
+        if BURLAP_COMMAND_PREFIX:
+            print('%s run: %s' % (render_command_prefix(), cmd))
+        else:
+            print(cmd)
+
+        return fn
 
     def get(self, *args, **kwargs):
         return get_or_dryrun(*args, **kwargs)
 
     def put(self, *args, **kwargs):
-        return put_or_dryrun(*args, **kwargs)
+        dryrun = self.dryrun
+        use_sudo = kwargs.get('use_sudo', False)
+        real_remote_path = None
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+        if dryrun:
+            local_path = kwargs['local_path']
+            remote_path = kwargs.get('remote_path', None)
+
+            if not remote_path:
+                _, remote_path = tempfile.mkstemp()
+
+            if not env.is_local and not remote_path.startswith('/') and not remote_path.startswith('~'):
+                remote_path = '/tmp/' + remote_path
+
+            if use_sudo:
+                real_remote_path = remote_path
+                _, remote_path = tempfile.mkstemp()
+
+            if real_remote_path is None:
+                real_remote_path = remote_path
+
+            if env.host_string in LOCALHOSTS:
+                cmd = 'rsync --progress --verbose %s %s' % (local_path, remote_path)
+                print('%s put: %s' % (render_command_prefix(is_local=True), cmd))
+                env.put_remote_path = local_path
+            else:
+                cmd = 'rsync --progress --verbose %s %s@%s:%s' % (local_path, env.user, env.host_string, remote_path)
+                env.put_remote_path = remote_path
+                print('%s put: %s' % (render_command_prefix(is_local=True), cmd))
+
+            if real_remote_path and use_sudo:
+                self.sudo('mv %s %s' % (remote_path, real_remote_path))
+                env.put_remote_path = real_remote_path
+
+            return [real_remote_path]
+
+        if env.host_string in LOCALHOSTS or env.is_local:
+            if use_sudo:
+                self.sudo('cp {local_path} {remote_path}'.format(**kwargs))
+            else:
+                self.local('cp {local_path} {remote_path}'.format(**kwargs))
+            env.put_remote_path = kwargs.get('remote_path')
+
+        return _put(**kwargs)
 
     def rsync(self, **kwargs):
         return rsync_or_dryrun(**kwargs)
 
-    def run_or_dryrun(self, *args, **kwargs):
-        warnings.warn('Use self.run() instead.', DeprecationWarning, stacklevel=2)
-        return run_or_dryrun(*args, **kwargs)
+    def get_calling_func_name(self):
+        """
+        Returns the name of the function that called our caller.
+        """
+        curframe = inspect.currentframe()
+        calling_frames = inspect.getouterframes(curframe, 2)
+        i = 1
+        caller_name = calling_frames[i][3]
+        while caller_name in ('get_calling_func_name', '_wrap', 'run_or_local', 'local', 'run', 'sudo'):
+            # Ignore temporary wrappers and other intermediaries.
+            i += 1
+            caller_name = calling_frames[i][3]
+        func_name = '%s.%s' % (self.name.lower(), caller_name)
+        return func_name
 
     @task
     def run(self, *args, **kwargs):
-        return run_or_dryrun(*args, **kwargs)
+        dryrun = get_dryrun(kwargs.get('dryrun'))
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+
+        func_name = self.get_calling_func_name()
+
+        ignore_errors = int(kwargs.pop('ignore_errors', 0))
+        cmd = args[0] if args else ''
+        assert cmd, 'No command specified.'
+        if dryrun:
+            if BURLAP_COMMAND_PREFIX:
+                print('%s %s: run: %s' % (render_command_prefix(), func_name, cmd))
+            else:
+                print(cmd)
+        else:
+            if ignore_errors:
+                with settings(warn_only=True):
+                    return _run(*args, **kwargs)
+            else:
+                return _run(*args, **kwargs)
 
     def run_or_local(self, *args, **kwargs):
         if is_local():
             # By default, Fabric's local() doesn't capture output, so to make it more interchangeable with run(),
             # we automatically set capture, even though this will temporarily hide output.
             kwargs['capture'] = True
-            return local_or_dryrun(*args, **kwargs)
-        return run_or_dryrun(*args, **kwargs)
+            return self.local(*args, **kwargs)
+        return self.run(*args, **kwargs)
 
     @task
     def run_on_all_sites(self, cmd, *args, **kwargs):
@@ -1340,10 +1662,6 @@ class Satchel:
             r.env.SITE = _site
             with self.settings(warn_only=True):
                 r.run('export SITE={SITE}; export ROLE={ROLE}; '+cmd)
-
-    def local_or_dryrun(self, *args, **kwargs):
-        warnings.warn('Use self.local() instead.', DeprecationWarning, stacklevel=2)
-        return local_or_dryrun(*args, **kwargs)
 
     def append(self, *args, **kwargs):
         return append_or_dryrun(*args, **kwargs)
@@ -1360,10 +1678,55 @@ class Satchel:
         return contains(*args, **kwargs)
 
     def sed(self, *args, **kwargs):
-        return sed_or_dryrun(*args, **kwargs)
+        """
+        Wrapper around Fabric's contrib.files.sed() to give it a dryrun option.
 
+        http://docs.fabfile.org/en/0.9.1/api/contrib/files.html#fabric.contrib.files.sed
+        """
+        dryrun = get_dryrun(kwargs.get('dryrun'))
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+
+        use_sudo = kwargs.get('use_sudo', False)
+
+        if dryrun:
+            context = dict(
+                filename=args[0] if len(args) >= 1 else kwargs['filename'],
+                before=args[1] if len(args) >= 2 else kwargs['before'],
+                after=args[2] if len(args) >= 3 else kwargs['after'],
+                backup=args[3] if len(args) >= 4 else kwargs.get('backup', '.bak'),
+                limit=kwargs.get('limit', ''),
+            )
+            cmd = 'sed -i{backup} -r -e "/{limit}/ s/{before}/{after}/g {filename}"'.format(**context)
+            cmd_run = 'sudo' if use_sudo else 'run'
+            if BURLAP_COMMAND_PREFIX:
+                print('%s %s: %s' % (render_command_prefix(), cmd_run, cmd))
+            else:
+                print(cmd)
+        else:
+            from fabric.contrib.files import sed
+            sed(*args, **kwargs)
+
+    @task
     def local(self, *args, **kwargs):
-        return local_or_dryrun(*args, **kwargs)
+        dryrun = get_dryrun(kwargs.get('dryrun'))
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+
+        func_name = self.get_calling_func_name()
+
+        assign_to = kwargs.pop('assign_to', None)
+        if assign_to:
+            cmd = args[0]
+            cmd = '$%s=`%s`' % (assign_to, cmd)
+            args = list(args)
+            args[0] = cmd
+
+        if dryrun:
+            cmd = args[0]
+            print('[%s@localhost] %s: local: %s' % (getpass.getuser(), func_name, cmd))
+        else:
+            return local(*args, **kwargs)
 
     def local_if_missing(self, fn, cmd, **kwargs):
         _cmd = "[ ! -f '%s' ] && %s || true" % (fn, cmd)
@@ -1373,18 +1736,39 @@ class Satchel:
         _cmd = "[ -f '%s' ] && %s || true" % (fn, cmd)
         self.local(_cmd, **kwargs)
 
-    def sudo_or_dryrun(self, *args, **kwargs):
-        warnings.warn('Use self.sudo() instead.', DeprecationWarning, stacklevel=2)
-        return sudo_or_dryrun(*args, **kwargs)
-
     @task
     def sudo(self, *args, **kwargs):
-        return sudo_or_dryrun(*args, **kwargs)
+        dryrun = get_dryrun(kwargs.get('dryrun'))
+        user = kwargs.get('user')
+        ignore_errors = int(kwargs.pop('ignore_errors', 0))
+        if 'dryrun' in kwargs:
+            del kwargs['dryrun']
+
+        func_name = self.get_calling_func_name()
+
+        if dryrun:
+            cmd = args[0]
+            if BURLAP_COMMAND_PREFIX:
+                if user:
+                    print('%s %s: run: sudo -u %s bash -c "%s"' % (render_command_prefix(), func_name, user, escape_double_quotes_in_command(cmd)))
+                else:
+                    print('%s %s: run: sudo bash -c "%s"' % (render_command_prefix(), func_name, escape_double_quotes_in_command(cmd)))
+            else:
+                if user:
+                    print('sudo -u %s bash -c "%s"' % (user, escape_double_quotes_in_command(cmd)))
+                else:
+                    print('sudo bash -c "%s"' % (escape_double_quotes_in_command(cmd),))
+        else:
+            if ignore_errors:
+                with settings(warn_only=True):
+                    return _sudo(*args, **kwargs)
+            else:
+                return _sudo(*args, **kwargs)
 
     def sudo_or_local(self, *args, **kwargs):
         if is_local():
-            return local_or_dryrun(*args, **kwargs)
-        return sudo_or_dryrun(*args, **kwargs)
+            return self.local(*args, **kwargs)
+        return self.sudo(*args, **kwargs)
 
     def sudo_if_missing(self, fn, cmd, **kwargs):
         _cmd = "[ ! -f '%s' ] && %s || true" % (fn, cmd)
@@ -1584,12 +1968,12 @@ class Service:
     @task
     def enable(self):
         cmd = self.get_command(ENABLE)
-        sudo_or_dryrun(cmd)
+        self.sudo(cmd)
 
     @task
     def disable(self):
         cmd = self.get_command(DISABLE)
-        sudo_or_dryrun(cmd)
+        self.sudo(cmd)
 
     @task
     def restart(self):
@@ -1597,7 +1981,7 @@ class Service:
         restart_cmd = self.get_command(RESTART)
         if restart_cmd:
             with settings(**s):
-                sudo_or_dryrun(restart_cmd)
+                self.sudo(restart_cmd)
         else:
             self.stop()
             self.start()
@@ -1606,7 +1990,7 @@ class Service:
     def reload(self):
         with settings(warn_only=True):
             cmd = self.get_command(RELOAD)
-            ret = sudo_or_dryrun(cmd) or ''
+            ret = self.sudo(cmd) or ''
             # If server is stopped or otherwise not active, then simply start it.
             if 'not active' in ret:
                 self.start()
@@ -1616,20 +2000,20 @@ class Service:
         s = {'warn_only':True} if self.ignore_errors else {}
         with settings(**s):
             cmd = self.get_command(START)
-            sudo_or_dryrun(cmd)
+            self.sudo(cmd)
 
     @task
     def stop(self, ignore_errors=True):
         s = {'warn_only': True} if ignore_errors else {}
         with settings(**s):
             cmd = self.get_command(STOP)
-            sudo_or_dryrun(cmd)
+            self.sudo(cmd)
 
     @task
     def status(self):
         with settings(warn_only=True):
             cmd = self.get_command(STATUS)
-            return sudo_or_dryrun(cmd)
+            return self.sudo(cmd)
 
     @task
     def is_running(self):
@@ -1697,18 +2081,6 @@ def shellquote(s, singleline=True):
     else:
         s = '{}'.format(pipes.quote(s))
     return s
-
-def init_burlap_data_dir():
-    d = env.burlap_data_dir
-    print('env.plan_storage:', env.plan_storage)
-    if env.plan_storage == 'local':
-        if not os.path.isdir(env.burlap_data_dir):
-            os.mkdir(d)
-    else:
-        if not d.startswith('/'):
-            d = '/home/%s/%s' % (env.user, d)
-        sudo_or_dryrun('mkdir -p "{directory}"; chown -R {user}:{user} {directory}'.format(user=env.user, directory=d))
-    return d
 
 def set_dryrun(dryrun):
     global _dryrun
@@ -1786,119 +2158,6 @@ def append_or_dryrun(*args, **kwargs):
     else:
         append(filename=filename, text=text.replace(r'\n', '\n'), use_sudo=use_sudo, **kwargs)
 
-def enable_attribute_or_dryrun(*args, **kwargs):
-    """
-    Similar to append() but ensures a line containing a key-value pair exists and is enabled.
-    """
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-
-    use_sudo = kwargs.pop('use_sudo', False)
-    run_cmd = sudo_or_dryrun if use_sudo else run_or_dryrun
-    run_cmd_str = 'sudo' if use_sudo else 'run'
-
-    key = args[0] if len(args) >= 1 else kwargs.pop('key')
-
-    value = str(args[1] if len(args) >= 2 else kwargs.pop('value'))
-
-    filename = args[2] if len(args) >= 3 else kwargs.pop('filename')
-
-    comment_pattern = args[3] if len(args) >= 4 else kwargs.pop('comment_pattern', r'#\s*')
-
-    equals_pattern = args[4] if len(args) >= 5 else kwargs.pop('equals_pattern', r'\s*=\s*')
-
-    equals_literal = args[5] if len(args) >= 6 else kwargs.pop('equals_pattern', '=')
-
-    context = dict(
-        key=key,
-        value=value,
-        uncommented_literal='%s%s%s' % (key, equals_literal, value), # key=value
-        uncommented_pattern='%s%s%s' % (key, equals_pattern, value), # key = value
-        uncommented_pattern_partial='^%s%s[^\\n]*' % (key, equals_pattern), # key=
-        commented_pattern='%s%s%s%s' % (comment_pattern, key, equals_pattern, value), # #key=value
-        commented_pattern_partial='^%s%s%s[^\\n]*' % (comment_pattern, key, equals_pattern), # #key=
-        filename=filename,
-        backup=filename+'.bak',
-        comment_pattern=comment_pattern,
-        equals_pattern=equals_pattern,
-    )
-
-    cmds = [
-        # Replace partial commented text with full un-commented text.
-        'sed -i -r -e "s/{commented_pattern_partial}/{uncommented_literal}/g" {filename}'.format(**context),
-        # Replace partial un-commented text with full un-commented text.
-        'sed -i -r -e "s/{uncommented_pattern_partial}/{uncommented_literal}/g" {filename}'.format(**context),
-        # Replace commented text with un-commented text.
-        'sed -i -r -e "s/{commented_pattern}/{uncommented_literal}/g" {filename}'.format(**context),
-        # If uncommented text still does not exist, append it.
-        'grep -qE "{uncommented_pattern}" {filename} || echo "{uncommented_literal}" >> {filename}'.format(**context),
-    ]
-
-    if dryrun:
-        for cmd in cmds:
-            if BURLAP_COMMAND_PREFIX:
-                print('%s %s: %s' % (render_command_prefix(), run_cmd_str, cmd))
-            else:
-                print(cmd)
-    else:
-        for cmd in cmds:
-#             print('enable attr:', cmd)
-            run_cmd(cmd)
-
-def disable_attribute_or_dryrun(*args, **kwargs):
-    """
-    Comments-out a line containing an attribute.
-    The inverse of enable_attribute_or_dryrun().
-    """
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-
-    use_sudo = kwargs.pop('use_sudo', False)
-    run_cmd = sudo_or_dryrun if use_sudo else run_or_dryrun
-    run_cmd_str = 'sudo' if use_sudo else 'run'
-
-    key = args[0] if len(args) >= 1 else kwargs.pop('key')
-
-    filename = args[1] if len(args) >= 2 else kwargs.pop('filename')
-
-    comment_pattern = args[2] if len(args) >= 3 else kwargs.pop('comment_pattern', r'#\s*')
-
-    equals_pattern = args[3] if len(args) >= 4 else kwargs.pop('equals_pattern', r'\s*=\s*')
-
-    equals_literal = args[4] if len(args) >= 5 else kwargs.pop('equals_pattern', '=')
-
-    context = dict(
-        key=key,
-        uncommented_literal='%s%s' % (key, equals_literal), # key=value
-        uncommented_pattern='%s%s' % (key, equals_pattern), # key = value
-        uncommented_pattern_partial='^%s%s[^\\n]*' % (key, equals_pattern), # key=
-        commented_pattern='%s%s%s' % (comment_pattern, key, equals_pattern), # #key=value
-        commented_pattern_partial='^%s%s%s[^\\n]*' % (comment_pattern, key, equals_pattern), # #key=
-        filename=filename,
-        backup=filename+'.bak',
-        comment_pattern=comment_pattern,
-        equals_pattern=equals_pattern,
-    )
-
-    cmds = [
-        # Replace partial un-commented text with full commented text.
-        'sed -i -r -e "s/{uncommented_pattern_partial}//g" {filename}'.format(**context),
-    ]
-
-    if dryrun:
-        for cmd in cmds:
-            if BURLAP_COMMAND_PREFIX:
-                print('%s %s: %s' % (render_command_prefix(), run_cmd_str, cmd))
-            else:
-                print(cmd)
-    else:
-        for cmd in cmds:
-#             print('enable attr:', cmd)
-            run_cmd(cmd)
 
 def files_exists_or_dryrun(path, *args, **kwargs):
 #     dryrun = get_dryrun(kwargs.get('dryrun'))
@@ -1941,73 +2200,6 @@ def write_temp_file_or_dryrun(content, *args, **kwargs):
         fout.close()
     return tmp_fn
 
-def sed_or_dryrun(*args, **kwargs):
-    """
-    Wrapper around Fabric's contrib.files.sed() to give it a dryrun option.
-
-    http://docs.fabfile.org/en/0.9.1/api/contrib/files.html#fabric.contrib.files.sed
-    """
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-
-    use_sudo = kwargs.get('use_sudo', False)
-
-    if dryrun:
-        context = dict(
-            filename=args[0] if len(args) >= 1 else kwargs['filename'],
-            before=args[1] if len(args) >= 2 else kwargs['before'],
-            after=args[2] if len(args) >= 3 else kwargs['after'],
-            backup=args[3] if len(args) >= 4 else kwargs.get('backup', '.bak'),
-            limit=kwargs.get('limit', ''),
-        )
-        cmd = 'sed -i{backup} -r -e "/{limit}/ s/{before}/{after}/g {filename}"'.format(**context)
-        cmd_run = 'sudo' if use_sudo else 'run'
-        if BURLAP_COMMAND_PREFIX:
-            print('%s %s: %s' % (render_command_prefix(), cmd_run, cmd))
-        else:
-            print(cmd)
-    else:
-        from fabric.contrib.files import sed
-        sed(*args, **kwargs)
-
-def local_or_dryrun(*args, **kwargs):
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-
-    assign_to = kwargs.pop('assign_to', None)
-    if assign_to:
-        cmd = args[0]
-        cmd = '$%s=`%s`' % (assign_to, cmd)
-        args = list(args)
-        args[0] = cmd
-
-    if dryrun:
-        cmd = args[0]
-        print('[%s@localhost] local: %s' % (getpass.getuser(), cmd))
-    else:
-        return local(*args, **kwargs)
-
-def run_or_dryrun(*args, **kwargs):
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-    ignore_errors = int(kwargs.pop('ignore_errors', 0))
-    cmd = args[0] if args else ''
-    assert cmd, 'No command specified.'
-    if dryrun:
-        if BURLAP_COMMAND_PREFIX:
-            print('%s run: %s' % (render_command_prefix(), cmd))
-        else:
-            print(cmd)
-    else:
-        if ignore_errors:
-            with settings(warn_only=True):
-                return _run(*args, **kwargs)
-        else:
-            return _run(*args, **kwargs)
-
 
 def begincap():
     """
@@ -2041,144 +2233,6 @@ def escape_double_quotes_in_command(cmd):
     return re.sub(r'(?<!\\)"', '\\"', cmd)
 
 
-def sudo_or_dryrun(*args, **kwargs):
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-    user = kwargs.get('user')
-    ignore_errors = int(kwargs.pop('ignore_errors', 0))
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-    if dryrun:
-        cmd = args[0]
-        if BURLAP_COMMAND_PREFIX:
-            if user:
-                print('%s run: sudo -u %s bash -c "%s"' % (render_command_prefix(), user, escape_double_quotes_in_command(cmd)))
-            else:
-                print('%s run: sudo bash -c "%s"' % (render_command_prefix(), escape_double_quotes_in_command(cmd)))
-        else:
-            if user:
-                print('sudo -u %s bash -c "%s"' % (user, escape_double_quotes_in_command(cmd)))
-            else:
-                print('sudo bash -c "%s"' % (escape_double_quotes_in_command(cmd),))
-    else:
-        if ignore_errors:
-            with settings(warn_only=True):
-                return _sudo(*args, **kwargs)
-        else:
-            return _sudo(*args, **kwargs)
-
-def reboot_or_dryrun(*args, **kwargs):
-    """
-    An improved version of fabric.operations.reboot with better error handling.
-    """
-    from fabric.state import connections
-
-    verbose = get_verbose()
-
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-
-    # Use 'wait' as max total wait time
-    kwargs.setdefault('wait', 120)
-    wait = int(kwargs['wait'])
-
-    command = kwargs.get('command', 'reboot')
-
-    now = int(kwargs.get('now', 0))
-    print('now:', now)
-    if now:
-        command += ' now'
-
-    # Shorter timeout for a more granular cycle than the default.
-    timeout = int(kwargs.get('timeout', 30))
-
-    reconnect_hostname = kwargs.pop('new_hostname', env.host_string)
-
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-
-    if dryrun:
-        print('%s sudo: %s' % (render_command_prefix(), command))
-    else:
-        if is_local():
-            if six.moves.input('reboot localhost now? ').strip()[0].lower() != 'y':
-                return
-
-        attempts = int(round(float(wait) / float(timeout)))
-        # Don't bleed settings, since this is supposed to be self-contained.
-        # User adaptations will probably want to drop the "with settings()" and
-        # just have globally set timeout/attempts values.
-        with settings(warn_only=True):
-            _sudo(command)
-
-        env.host_string = reconnect_hostname
-        success = False
-        for attempt in six.moves.range(attempts):
-
-            # Try to make sure we don't slip in before pre-reboot lockdown
-            if verbose:
-                print('Waiting for %s seconds, wait %i of %i' % (timeout, attempt+1, attempts))
-            time.sleep(timeout)
-
-            # This is actually an internal-ish API call, but users can simply drop
-            # it in real fabfile use -- the next run/sudo/put/get/etc call will
-            # automatically trigger a reconnect.
-            # We use it here to force the reconnect while this function is still in
-            # control and has the above timeout settings enabled.
-            try:
-                if verbose:
-                    print('Reconnecting to:', env.host_string)
-                # This will fail until the network interface comes back up.
-                connections.connect(env.host_string)
-                # This will also fail until SSH is running again.
-                with settings(timeout=timeout):
-                    _run('echo hello')
-                success = True
-                break
-            except Exception as e:
-                print('Exception:', e)
-
-        if not success:
-            raise Exception('Reboot failed or took longer than %s seconds.' % wait)
-
-# def get_or_dryrun(*args, **kwargs):
-#     dryrun = get_dryrun(kwargs.get('dryrun'))
-#     use_sudo = kwargs.get('use_sudo', False)
-#     real_remote_path = None
-#     if 'dryrun' in kwargs:
-#         del kwargs['dryrun']
-#     if dryrun:
-#         local_path = kwargs['local_path']
-#         remote_path = kwargs.get('remote_path', None)
-#
-#         if not local_path:
-#             _, local_path = tempfile.mkstemp()
-#
-#         if not local_path.startswith('/') and not local_path.startswith('~'):
-#             local_path = '/tmp/' + local_path
-#
-#         if use_sudo:
-#             real_local_path = local_path
-#             _, local_path = tempfile.mkstemp()
-#
-#         if real_local_path is None:
-#             real_local_path = local_path
-#
-#         if env.host_string in LOCALHOSTS:
-#             cmd = 'rsync --progress --verbose %s %s' % (remote_path, local_path)
-#             print('%s get: %s' % (render_command_prefix(is_local=True), cmd))
-#             env.get_local_path = local_path
-#         else:
-#             cmd = 'rsync --progress --verbose %s %s@%s:%s' % (local_path, env.user, env.host_string, local_path)
-#             env.get_local_path = local_path
-#             print('%s get: %s' % (render_command_prefix(is_local=True), cmd))
-#
-#         if real_local_path and use_sudo:
-#             sudo_or_dryrun('mv %s %s' % (local_path, real_local_path))
-#             env.get_local_path = real_local_path
-#
-#         return [real_local_path]
-#     else:
-#         return _get(**kwargs)
-
 def rsync_or_dryrun(**kwargs):
     dryrun = get_dryrun(kwargs.get('dryrun'))
     use_sudo = kwargs.get('use_sudo', False)
@@ -2190,53 +2244,6 @@ def rsync_or_dryrun(**kwargs):
         print(cmd)
     else:
         _local(cmd, **kwargs)
-
-def put_or_dryrun(*args, **kwargs):
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-    use_sudo = kwargs.get('use_sudo', False)
-    real_remote_path = None
-    if 'dryrun' in kwargs:
-        del kwargs['dryrun']
-    if dryrun:
-        local_path = kwargs['local_path']
-        remote_path = kwargs.get('remote_path', None)
-
-        if not remote_path:
-            _, remote_path = tempfile.mkstemp()
-
-        if not env.is_local and not remote_path.startswith('/') and not remote_path.startswith('~'):
-            remote_path = '/tmp/' + remote_path
-
-        if use_sudo:
-            real_remote_path = remote_path
-            _, remote_path = tempfile.mkstemp()
-
-        if real_remote_path is None:
-            real_remote_path = remote_path
-
-        if env.host_string in LOCALHOSTS:
-            cmd = 'rsync --progress --verbose %s %s' % (local_path, remote_path)
-            print('%s put: %s' % (render_command_prefix(is_local=True), cmd))
-            env.put_remote_path = local_path
-        else:
-            cmd = 'rsync --progress --verbose %s %s@%s:%s' % (local_path, env.user, env.host_string, remote_path)
-            env.put_remote_path = remote_path
-            print('%s put: %s' % (render_command_prefix(is_local=True), cmd))
-
-        if real_remote_path and use_sudo:
-            sudo_or_dryrun('mv %s %s' % (remote_path, real_remote_path))
-            env.put_remote_path = real_remote_path
-
-        return [real_remote_path]
-
-    if env.host_string in LOCALHOSTS or env.is_local:
-        if use_sudo:
-            sudo_or_dryrun('cp {local_path} {remote_path}'.format(**kwargs))
-        else:
-            local_or_dryrun('cp {local_path} {remote_path}'.format(**kwargs))
-        env.put_remote_path = kwargs.get('remote_path')
-
-    return _put(**kwargs)
 
 
 def get_or_dryrun(**kwargs):
@@ -2674,66 +2681,6 @@ def render_to_string(template, extra=None):
     rendered_content = rendered_content.replace('&quot;', '"')
     return rendered_content
 
-def render_to_file(template, fn=None, extra=None, **kwargs):
-    """
-    Returns a template to a local file.
-    If no filename given, a temporary filename will be generated and returned.
-    """
-    import tempfile
-    dryrun = get_dryrun(kwargs.get('dryrun'))
-    append_newline = kwargs.pop('append_newline', True)
-    style = kwargs.pop('style', 'cat') # |echo
-    formatter = kwargs.pop('formatter', None)
-    content = render_to_string(template, extra=extra)
-    if append_newline and not content.endswith('\n'):
-        content += '\n'
-
-    if formatter and callable(formatter):
-        content = formatter(content)
-
-    if dryrun:
-        if not fn:
-            fd, fn = tempfile.mkstemp()
-            fout = os.fdopen(fd, 'wt')
-            fout.close()
-    else:
-        if fn:
-            fout = open(fn, 'w')
-        else:
-            fd, fn = tempfile.mkstemp()
-            fout = os.fdopen(fd, 'wt')
-        fout.write(content)
-        fout.close()
-    assert fn
-
-    if style == 'cat':
-        cmd = 'cat <<EOF > %s\n%s\nEOF' % (fn, content)
-    elif style == 'echo':
-        cmd = 'echo -e %s > %s' % (shellquote(content), fn)
-    else:
-        raise NotImplementedError
-
-    if BURLAP_COMMAND_PREFIX:
-        print('%s run: %s' % (render_command_prefix(), cmd))
-    else:
-        print(cmd)
-
-    return fn
-
-def install_config(local_path=None, remote_path=None, render=True, extra=None, formatter=None):
-    """
-    Returns a template to a remote file.
-    If no filename given, a temporary filename will be generated and returned.
-    """
-    local_path = find_template(local_path)
-    if render:
-        extra = extra or {}
-        local_path = render_to_file(template=local_path, extra=extra, formatter=formatter)
-    put_or_dryrun(local_path=local_path, remote_path=remote_path, use_sudo=True)
-
-def install_script(*args, **kwargs):
-    install_config(*args, **kwargs)
-    sudo_or_dryrun('chmod +x %s' % env.put_remote_path)
 
 def write_to_file(content, fn=None, **kwargs):
 
@@ -2756,11 +2703,6 @@ def write_to_file(content, fn=None, **kwargs):
         fout.write(content)
         fout.close()
     return fn
-
-def upload_content(content, fn, **kwargs):
-    tmp_fn = write_to_file(content=content, **kwargs)
-    use_sudo = kwargs.pop('use_sudo', env.host_string not in LOCALHOSTS)
-    put_or_dryrun(local_path=tmp_fn, remote_path=fn, use_sudo=use_sudo)
 
 def set_site(site):
     if site is None:
@@ -2869,23 +2811,6 @@ def get_current_hostname():
     key = '_ip_to_hostname'
     if key not in env:
         env[key] = {}
-#    import importlib
-#
-#    retriever = None
-#    if env.hosts_retriever:
-#        # Dynamically retrieve hosts.
-#        module_name = '.'.join(env.hosts_retriever.split('.')[:-1])
-#        func_name = env.hosts_retriever.split('.')[-1]
-#        retriever = getattr(importlib.import_module(module_name), func_name)
-#
-#    # Load host translator.
-#    translator = None
-#    if hostname:
-#        # Filter hosts list by a specific host name.
-#        module_name = '.'.join(env.hostname_translator.split('.')[:-1])
-#        func_name = env.hostname_translator.split('.')[-1]
-#        translator = getattr(importlib.import_module(module_name), func_name)
-    #ret = run_or_dryrun('hostname')#)
 
     if not env.host_string:
         env.host_string = LOCALHOST_NAME

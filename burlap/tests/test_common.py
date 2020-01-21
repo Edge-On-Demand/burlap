@@ -23,6 +23,7 @@ from burlap import load_yaml_settings
 from burlap.common import CMD_VAR_REGEX, CMD_ESCAPED_VAR_REGEX, shellquote, all_satchels, Satchel, env, get_satchel, clear_state, save_env, env
 from burlap.decorators import task
 from burlap.tests.base import TestCase
+from burlap.exceptions import SatchelDoesNotExist
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 
@@ -306,11 +307,8 @@ set_by_include3: 'some special setting'
         finally:
             a_satchel.unregister()
             del a_satchel
-            with self.assertRaises(KeyError):
+            with self.assertRaises(SatchelDoesNotExist):
                 get_satchel('a')
-#             import gc
-#             refs = gc.get_referrers(a_satchel)
-#             print('refs:', refs)
             b_satchel.unregister()
             c_satchel.unregister()
 

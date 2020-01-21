@@ -660,7 +660,9 @@ class DjangoSatchel(Satchel):
         """
         Runs the standard South migrate command for one or more sites.
 
-        Note, to pass a comma-delimted list in a fab command, escape the comma with a back slash.
+        To pass a comma-delimited list in a fab command, escape the comma with a backslash.
+        skip_databases is currently unused and deprecated. It can be removed once we're sure this method isn't being
+        called with positional-only arguments.
 
         e.g.
 
@@ -678,10 +680,6 @@ class DjangoSatchel(Satchel):
 
         if self.version_tuple >= (1, 9, 0):
             delete_ghosts = 0
-
-        skip_databases = (skip_databases or '')
-        if isinstance(skip_databases, six.string_types):
-            skip_databases = [_.strip() for _ in skip_databases.split(',') if _.strip()]
 
         migrate_apps = migrate_apps or ''
         migrate_apps = [
@@ -843,6 +841,7 @@ class DjangoSatchel(Satchel):
         manifest = super(DjangoSatchel, self).record_manifest()
         manifest['latest_timestamp'] = self.get_media_timestamp()
         manifest['migrations'] = self.get_migration_fingerprint()
+        manifest['sdlkfjsd'] = 123#TODO
         return manifest
 
     @task(precursors=['packager', 'pip'])
@@ -869,6 +868,7 @@ class DjangoSatchel(Satchel):
         for app_name in current:
             if current[app_name] != last.get(app_name):
                 migrate_apps.append(app_name)
+        migrate_apps = ','.join(migrate_apps)
 
         if migrate_apps:
             self.vprint('%i apps with new migrations found!' % len(migrate_apps))
@@ -876,8 +876,7 @@ class DjangoSatchel(Satchel):
             self.vprint('ignore_migration_errors:', self.env.ignore_migration_errors)
             # Note, Django's migrate command doesn't support multiple app name arguments
             # with all options, so we run it separately for each app.
-            for app in migrate_apps:
-                self.migrate(app=app, ignore_errors=self.env.ignore_migration_errors)
+            self.migrate(migrate_apps=migrate_apps)
         else:
             self.vprint('No new migrations.')
 
