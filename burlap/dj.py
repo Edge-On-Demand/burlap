@@ -660,9 +660,18 @@ class DjangoSatchel(Satchel):
         """
         Runs the standard South migrate command for one or more sites.
 
+        Args:
+            app: App to migrate (appended to migrate_apps)
+            migration: Name of migration (defaults to all)
+            site: Site to migrate (defaults to all)
+            fake: If truthy, fake migrations
+            ignore_errors: If truthy, print and ignore migration failures (defaults to r.env.ignore_migration_errors)
+            skip_databases: Unused, deprecated
+            database: Database on which to migrate apps
+            migrate_apps: Apps to migrate (defaults to all)
+            delete_ghosts: Delete ghost migrations (South-only)
+
         To pass a comma-delimited list in a fab command, escape the comma with a backslash.
-        skip_databases is currently unused and deprecated. It can be removed once we're sure this method isn't being
-        called with positional-only arguments.
 
         e.g.
 
@@ -719,7 +728,7 @@ class DjangoSatchel(Satchel):
                     continue
 
             if not migrate_apps:
-                migrate_apps.append(' ')
+                migrate_apps = ['']
 
             for _app in migrate_apps:
                 # In cases where we're migrating built-in apps or apps with dotted names
@@ -871,12 +880,9 @@ class DjangoSatchel(Satchel):
         migrate_apps = ','.join(migrate_apps)
 
         if migrate_apps:
-            self.vprint('%i apps with new migrations found!' % len(migrate_apps))
-            self.vprint('migrate_apps:', migrate_apps)
+            self.vprint('%i apps with new migrations found: %s' % (len(migrate_apps), migrate_apps))
             self.vprint('ignore_migration_errors:', self.env.ignore_migration_errors)
-            # Note, Django's migrate command doesn't support multiple app name arguments
-            # with all options, so we run it separately for each app.
-            self.migrate(migrate_apps=migrate_apps)
+            self.migrate()
         else:
             self.vprint('No new migrations.')
 
