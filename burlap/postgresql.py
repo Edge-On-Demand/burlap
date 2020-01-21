@@ -328,7 +328,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             else:
                 ret = int(ret.split('\n')[-1]) >= 1
 
-            print('%s database on site %s %s exist' % (name, self.genv.SITE, 'DOES' if ret else 'DOES NOT'))
+            print('%s database on site %s %s exist' % (r.env.db_name, self.genv.SITE, 'DOES' if ret else 'DOES NOT'))
 
         return ret
 
@@ -508,15 +508,14 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 "DROP OWNED BY {db_user} CASCADE;", name=name, site=site, as_db_root_user=True, ignore_errors=True)
 
         # Create db user and assign privileges as appropriate
-        if not self.exists(name):
-            self.execute(
-                "DROP USER IF EXISTS {db_user}; "
-                "CREATE USER {db_user} WITH PASSWORD '{db_password}';", name=name, site=site, as_db_root_user=True)
-            if not r.env.schema_mt:
-                self.execute("GRANT ALL PRIVILEGES ON DATABASE {db_name} to {db_user};", name=name, site=site, as_db_root_user=True)
-                for createlang in r.env.createlangs:
-                    r.env.createlang = createlang
-                    r.sudo('createlang -U {db_root_username} --host={db_host} {createlang} {db_name} || true', user=r.env.postgres_user)
+        self.execute(
+            "DROP USER IF EXISTS {db_user}; "
+            "CREATE USER {db_user} WITH PASSWORD '{db_password}';", name=name, site=site, as_db_root_user=True)
+        if not r.env.schema_mt:
+            self.execute("GRANT ALL PRIVILEGES ON DATABASE {db_name} to {db_user};", name=name, site=site, as_db_root_user=True)
+            for createlang in r.env.createlangs:
+                r.env.createlang = createlang
+                r.sudo('createlang -U {db_root_username} --host={db_host} {createlang} {db_name} || true', user=r.env.postgres_user)
 
         if r.env.schema_mt:
             # Create schema and assign to user. This assumes each schema is associated with a unique user.
