@@ -595,7 +595,8 @@ class DjangoSatchel(Satchel):
     @task
     def shell(self):
         """
-        Opens a Django focussed Python shell.
+        Opens a Django-focused Python shell.
+
         Essentially the equivalent of running `manage.py shell`.
         """
         r = self.local_renderer
@@ -605,7 +606,9 @@ class DjangoSatchel(Satchel):
             r.env.shell_host_string = '{user}@{host_string}'
         r.env.shell_default_dir = self.genv.shell_default_dir_template
         r.env.shell_interactive_djshell_str = self.genv.interactive_shell_template
-        r.run_or_local('ssh -t -i {key_filename} {shell_host_string} "{shell_interactive_djshell_str}"')
+        r.local(
+            'ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} '
+            '"{shell_interactive_djshell_str}"')
 
     @task
     def syncdb(self, site=None, all=0, database=None, ignore_errors=1): # pylint: disable=redefined-builtin
