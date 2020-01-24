@@ -595,7 +595,8 @@ class DjangoSatchel(Satchel):
     @task
     def shell(self):
         """
-        Opens a Django focussed Python shell.
+        Open a Django-focused Python shell.
+
         Essentially the equivalent of running `manage.py shell`.
         """
         r = self.local_renderer
@@ -605,7 +606,27 @@ class DjangoSatchel(Satchel):
             r.env.shell_host_string = '{user}@{host_string}'
         r.env.shell_default_dir = self.genv.shell_default_dir_template
         r.env.shell_interactive_djshell_str = self.genv.interactive_shell_template
-        r.run_or_local('ssh -t -i {key_filename} {shell_host_string} "{shell_interactive_djshell_str}"')
+        r.local(
+            'ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} '
+            '"{shell_interactive_djshell_str}"')
+
+    @task
+    def dbshell(self):
+        """
+        Open a Django-focused db shell.
+
+        Essentially the equivalent of running `manage.py dbshell`.
+        """
+        r = self.local_renderer
+        if '@' in self.genv.host_string:
+            r.env.shell_host_string = self.genv.host_string
+        else:
+            r.env.shell_host_string = '{user}@{host_string}'
+        r.env.shell_default_dir = self.genv.shell_default_dir_template
+        r.env.shell_interactive_dbshell_str = self.genv.interactive_dbshell_template
+        r.local(
+            'ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} '
+            '"{shell_interactive_dbshell_str}"')
 
     @task
     def syncdb(self, site=None, all=0, database=None, ignore_errors=1): # pylint: disable=redefined-builtin
@@ -660,9 +681,18 @@ class DjangoSatchel(Satchel):
         """
         Runs the standard South migrate command for one or more sites.
 
+        Args:
+            app: App to migrate (appended to migrate_apps)
+            migration: Name of migration (defaults to all)
+            site: Site to migrate (defaults to all)
+            fake: If truthy, fake migrations
+            ignore_errors: If truthy, print and ignore migration failures (defaults to r.env.ignore_migration_errors)
+            skip_databases: Unused, deprecated
+            database: Database on which to migrate apps
+            migrate_apps: Apps to migrate (defaults to all)
+            delete_ghosts: Delete ghost migrations (South-only)
+
         To pass a comma-delimited list in a fab command, escape the comma with a backslash.
-        skip_databases is currently unused and deprecated. It can be removed once we're sure this method isn't being
-        called with positional-only arguments.
 
         e.g.
 
@@ -719,7 +749,7 @@ class DjangoSatchel(Satchel):
                     continue
 
             if not migrate_apps:
-                migrate_apps.append(' ')
+                migrate_apps = ['']
 
             for _app in migrate_apps:
                 # In cases where we're migrating built-in apps or apps with dotted names
@@ -871,12 +901,9 @@ class DjangoSatchel(Satchel):
         migrate_apps = ','.join(migrate_apps)
 
         if migrate_apps:
-            self.vprint('%i apps with new migrations found!' % len(migrate_apps))
-            self.vprint('migrate_apps:', migrate_apps)
+            self.vprint('%i apps with new migrations found: %s' % (len(migrate_apps), migrate_apps))
             self.vprint('ignore_migration_errors:', self.env.ignore_migration_errors)
-            # Note, Django's migrate command doesn't support multiple app name arguments
-            # with all options, so we run it separately for each app.
-            self.migrate(migrate_apps=migrate_apps)
+            self.migrate()
         else:
             self.vprint('No new migrations.')
 
