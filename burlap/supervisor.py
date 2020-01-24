@@ -11,9 +11,6 @@ processes using `supervisord`_.
 from __future__ import print_function
 
 import os
-import time
-
-import six
 
 from burlap.constants import *
 from burlap import ServiceSatchel
@@ -24,11 +21,7 @@ class SupervisorSatchel(ServiceSatchel):
 
     name = 'supervisor'
 
-    ## Service options.
-
-    #ignore_errors = True
-
-    post_deploy_command = 'restart'
+    post_deploy_command = 'restart_all'
 
     @property
     def packager_system_packages(self):
@@ -41,7 +34,6 @@ class SupervisorSatchel(ServiceSatchel):
         self.env.manage_configs = True
         self.env.config_template = 'supervisor/supervisor_daemon.template2.config'
         self.env.config_path = '/etc/supervisor/supervisord.conf'
-        #/etc/supervisor/conf.d/celery_
         self.env.conf_dir = '/etc/supervisor/conf.d'
         self.env.daemon_bin_path_template = '{pip_virtualenv_dir}/bin/supervisord'
         self.env.daemon_path = '/etc/init.d/supervisord'
@@ -50,7 +42,6 @@ class SupervisorSatchel(ServiceSatchel):
         self.env.log_path = "/var/log/supervisord.log"
         self.env.supervisorctl_path_template = '{pip_virtualenv_dir}/bin/supervisorctl'
         self.env.kill_pattern = ''
-        self.env.max_restart_wait_minutes = 5
         self.env.services_rendered = ''
 
         # If true, then all configuration files not explicitly managed by use will be deleted.
@@ -58,33 +49,36 @@ class SupervisorSatchel(ServiceSatchel):
 
         self.env.services = []
 
-        # Functions that, when called, should return a supervisor service text
-        # ready to be appended to supervisord.conf.
+        # Functions that, when called, should return a supervisor service text ready to be appended to supervisord.conf.
         # It will be called once for each site.
         self.genv._supervisor_create_service_callbacks = []
 
+        # Most of these service commands are overridden by satchel tasks.
+        # http://supervisord.org/running.html
+        # http://www.onurguzel.com/supervisord-restarting-and-reloading/
+        # "unix:///var/run/supervisor.sock no such file" generally indicates that the Supervisor service is not running.
         self.env.service_commands = {
-            START:{
+            START: { # Start Supervisor service. Processes should come up automatically.
                 FEDORA: 'systemctl start supervisord.service',
                 UBUNTU: 'service supervisor start',
             },
-            STOP:{
+            STOP: { # Stop Supervisor service. Not guaranteed to stop all processes, as stop_all() does.
                 FEDORA: 'systemctl stop supervisor.service',
                 UBUNTU: 'service supervisor stop',
             },
-            DISABLE:{
+            DISABLE: {
                 FEDORA: 'systemctl disable httpd.service',
                 UBUNTU: 'chkconfig supervisor off',
             },
-            ENABLE:{
+            ENABLE: {
                 FEDORA: 'systemctl enable httpd.service',
                 UBUNTU: 'chkconfig supervisor on',
             },
-            RESTART:{
+            RESTART: { # Restart Supervisor service. Not guaranteed to restart all processes, as restart_all() does.
                 FEDORA: 'systemctl restart supervisord.service',
                 UBUNTU: 'service supervisor restart; sleep 5',
             },
-            STATUS:{
+            STATUS: { # Get status of Supervisor service. Use status_all() for a better view of process status.
                 FEDORA: 'systemctl --no-pager status supervisord.service',
                 (UBUNTU, '14.04'): 'service supervisor status',
                 (UBUNTU, '16.04'): 'systemctl --no-pager status supervisor',
@@ -102,37 +96,69 @@ class SupervisorSatchel(ServiceSatchel):
         self.genv._supervisor_create_service_callbacks.append(f)
 
     @task
+    def start_all(self):
+        """
+        Start service and all processes.
+        """
+        r = self.local_renderer
+        self.start()
+        r.sudo('supervisorctl start all')
+
+    @task
+    def stop_all(self):
+        """
+        Stop all processes, but don't stop service.
+        """
+        r = self.local_renderer
+        r.sudo('supervisorctl stop all')
+
+    @task
+    def restart_all(self):
+        """
+        Restart all processes, but don't restart service.
+        """
+        r = self.local_renderer
+        r.sudo('supervisorctl restart all')
+
+    @task
+    def status_all(self):
+        """
+        Get status of all processes.
+        """
+        r = self.local_renderer
+        r.sudo('supervisorctl status')
+
+    @task
     def restart(self):
         """
-        Supervisor can take a very long time to start and stop,
-        so wait for it.
+        Stop all processes, reread config, and reload supervisord.
         """
-        n = 60
-        sleep_n = int(self.env.max_restart_wait_minutes/10.*60)
-        for _ in six.moves.range(n):
-            self.stop()
-            if self.dryrun or not self.is_running():
-                break
-            print('Waiting for supervisor to stop (%i of %i)...' % (_, n))
-            time.sleep(sleep_n)
-        self.start()
-        for _ in six.moves.range(n):
-            if self.dryrun or self.is_running():
-                return
-            print('Waiting for supervisor to start (%i of %i)...' % (_, n))
-            time.sleep(sleep_n)
-        raise Exception('Failed to restart service %s!' % self.name)
+        self.stop_all()
+        self.reload()
 
     @task
     def reload(self):
+        """
+        Reread config and reload supervisord, but don't restart service.
+
+        May take several minutes if processes have not yet been stopped.
+        restart() is usually faster, as it uses stop_all() to stop processes.
+        """
         r = self.local_renderer
         r.sudo('supervisorctl reread')
-        r.sudo('supervisorctl reload all')
+        r.sudo('supervisorctl reload')
+
+    @task
+    def update(self):
+        """
+        Restart applications whose configurations have changed (does not restart service).
+        """
+        r = self.local_renderer
+        r.sudo('supervisorctl update')
 
     def record_manifest(self):
         """
-        Called after a deployment to record any data necessary to detect changes
-        for a future deployment.
+        Called after a deployment to record any data necessary to detect changes for a future deployment.
         """
         data = super(SupervisorSatchel, self).record_manifest()
 
@@ -146,7 +172,6 @@ class SupervisorSatchel(ServiceSatchel):
 
         # Generate services list.
         self.write_configs(upload=0)
-        #data['services_rendered'] = ''
 
         return data
 
@@ -154,21 +179,19 @@ class SupervisorSatchel(ServiceSatchel):
     def write_configs(self, site=None, upload=1):
 
         site = site or ALL
-
         verbose = self.verbose
 
         self.render_paths()
 
         supervisor_services = []
-        process_groups = []
 
-        #TODO:check available_sites_by_host and remove dead?
+        # TODO: check available_sites_by_host and remove dead?
         for _site, site_data in self.iter_sites(site=site, renderer=self.render_paths):
             if verbose:
                 print('write_configs.site:', _site)
             for cb in self.genv._supervisor_create_service_callbacks:
                 ret = cb(site=_site)
-                if isinstance(ret, six.string_types):
+                if isinstance(ret, str):
                     supervisor_services.append(ret)
                 elif isinstance(ret, tuple):
                     assert len(ret) == 2
@@ -189,8 +212,7 @@ class SupervisorSatchel(ServiceSatchel):
 
     def deploy_services(self, site=None):
         """
-        Collects the configurations for all registered services and writes
-        the appropriate supervisord.conf file.
+        Collect the configurations for all registered services and write the appropriate supervisord.conf file.
         """
 
         verbose = self.verbose
@@ -198,8 +220,6 @@ class SupervisorSatchel(ServiceSatchel):
         r = self.local_renderer
         if not r.env.manage_configs:
             return
-#
-#         target_sites = self.genv.available_sites_by_host.get(hostname, None)
 
         self.render_paths()
 
@@ -208,17 +228,11 @@ class SupervisorSatchel(ServiceSatchel):
         if r.env.purge_all_confs:
             r.sudo('rm -Rf /etc/supervisor/conf.d/*')
 
-        #TODO:check available_sites_by_host and remove dead?
+        # TODO: check available_sites_by_host and remove dead?
         self.write_configs(site=site)
         for _site, site_data in self.iter_sites(site=site, renderer=self.render_paths):
             if verbose:
                 print('deploy_services.site:', _site)
-
-            # Only load site configurations that are allowed for this host.
-#             if target_sites is not None:
-#                 assert isinstance(target_sites, (tuple, list))
-#                 if site not in target_sites:
-#                     continue
 
             for cb in self.genv._supervisor_create_service_callbacks:
                 if self.verbose:
@@ -226,7 +240,7 @@ class SupervisorSatchel(ServiceSatchel):
                 ret = cb(site=_site)
                 if self.verbose:
                     print('ret:', ret)
-                if isinstance(ret, six.string_types):
+                if isinstance(ret, str):
                     supervisor_services.append(ret)
                 elif isinstance(ret, tuple):
                     assert len(ret) == 2
@@ -241,13 +255,8 @@ class SupervisorSatchel(ServiceSatchel):
         fn = self.render_to_file(self.env.config_template)
         r.put(local_path=fn, remote_path=self.env.config_path, use_sudo=True)
 
-        # We use supervisorctl to configure supervisor, but this will throw a uselessly vague
-        # error message is supervisor isn't running.
-        if not self.is_running():
-            self.start()
-
-        # Reload config and then add and remove as necessary (restarts programs)
-        r.sudo('supervisorctl update')
+        self.start()
+        self.update()
 
     @task(precursors=['packager', 'user', 'rabbitmq'])
     def configure(self, **kwargs):

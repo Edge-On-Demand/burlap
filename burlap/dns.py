@@ -81,8 +81,11 @@ class DNSSatchel(Satchel):
     @task
     @runs_once
     def update_dns(self):
+        """
+        Loop over zone file and add/update any missing entries.
+        """
         from blockstack_zones import parse_zone_file
-        #from blockstack_zones import parse_zone_file
+
         r = self.local_renderer
         for zone_data in r.env.zones:
             zone_file = zone_data['file']
@@ -99,13 +102,12 @@ class DNSSatchel(Satchel):
 
             #TODO:add differential update using get_last_zonefile()
 
-            # Only update record types we're specifically incharge of managing.
+            # Only update record types we're specifically in charge of managing.
             for record_type in types:
                 record_type = record_type.lower()
                 for record in zone_data.get(record_type):
-                    getattr(self, 'update_dns_%s' % backend)(domain=domain, record_type=record_type, record=record)
-                    #break
-                #break
+                    backend_updater = getattr(self, 'update_dns_%s' % backend)
+                    backend_updater(domain=domain, record_type=record_type, record=record)
 
     def record_manifest(self):
         r = self.local_renderer
