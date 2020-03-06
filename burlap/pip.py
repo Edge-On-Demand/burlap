@@ -26,7 +26,7 @@ class PIPSatchel(Satchel):
     def packager_system_packages(self):
         return {
             UBUNTU: [
-                'gcc', 'python-dev', 'build-essential', 'python-pip',
+                'gcc', 'python-dev', 'build-essential', 'python3-pip',
             ],
         }
 
@@ -42,9 +42,12 @@ class PIPSatchel(Satchel):
 
     @task
     def has_pip(self):
+        """
+        Is pip3 installed on the system?
+        """
         r = self.local_renderer
         with self.settings(warn_only=True):
-            ret = (r.run_or_local('which pip{python_version}') or '').strip()
+            ret = (r.run('which pip3') or '').strip()
             if ret:
                 print(f'Pip is installed at {ret}.')
             else:
@@ -54,7 +57,7 @@ class PIPSatchel(Satchel):
     @task
     def bootstrap(self, force=0):
         """
-        Install all the necessary packages necessary for managing virtual environments with pip.
+        Install all the packages necessary for managing virtual environments with pip.
         """
         force = int(force)
         if self.has_pip() and not force:
@@ -74,7 +77,7 @@ class PIPSatchel(Satchel):
         else:
             raise NotImplementedError('Unknown pip bootstrap method: %s' % r.env.bootstrap_method)
 
-        # Upgrade pip, virtualenv
+        # Upgrade pip
         r.run_or_local(f'python{self.env.python_version} -m pip install pip')
 
     @task

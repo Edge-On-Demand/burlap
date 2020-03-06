@@ -611,7 +611,7 @@ class DjangoSatchel(Satchel):
             '"{shell_interactive_djshell_str}"')
 
     @task
-    def dbshell(self):
+    def dbshell(self, database=None):
         """
         Open a Django-focused db shell.
 
@@ -624,9 +624,10 @@ class DjangoSatchel(Satchel):
             r.env.shell_host_string = '{user}@{host_string}'
         r.env.shell_default_dir = self.genv.shell_default_dir_template
         r.env.shell_interactive_dbshell_str = self.genv.interactive_dbshell_template
+        r.env.database_arg = f' --database={database}' if database else ''
         r.local(
             'ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} '
-            '"{shell_interactive_dbshell_str}"')
+            '"{shell_interactive_dbshell_str}{database_arg}"')
 
     @task
     def syncdb(self, site=None, all=0, database=None, ignore_errors=1): # pylint: disable=redefined-builtin
