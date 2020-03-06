@@ -68,6 +68,8 @@ class BuildBotSatchel(ServiceSatchel):
 
         self.env.pid_path = 'buildbot/{type}/twistd.pid'
 
+        self.env.rsync_excludes = []
+
         self.env.worker_names = ['worker']
 
         #DEPRECATED
@@ -246,10 +248,6 @@ class BuildBotSatchel(ServiceSatchel):
             r.env.to_group = to_group
             r.env.to_path_fq = os.path.join(to_path, os.path.split(from_path)[-1])
             r.env.to_perms = to_perms
-#             r.local('rsync '
-#                 '--verbose --compress '
-#                 '--rsh "ssh -t -o StrictHostKeyChecking=no -i {key_filename}" '
-#                 '{from_path} {user}@{host_string}:{to_path}')
             r.put(local_path=r.env.from_path, remote_path=r.env.to_path, use_sudo=True)
             r.sudo('chown {to_user}:{to_group} {to_path_fq}')
             r.sudo('chmod {to_perms} {to_path_fq}')
@@ -283,6 +281,8 @@ class BuildBotSatchel(ServiceSatchel):
         for delete_path in r.env.delete_deploy_paths:
             r.sudo('rm -Rf %s' % delete_path)
 
+        exclude_str = ' '.join(['--exclude=%s' % path for path in r.env.rsync_excludes])
+
         r.local('rsync '
             '--recursive --verbose --perms --times --links '
             '--compress --copy-links '
@@ -290,7 +290,8 @@ class BuildBotSatchel(ServiceSatchel):
             '--exclude=*.sqlite '
             '--exclude=build '
             '--exclude=worker '
-            '--exclude=*_runtests '
+            '--exclude=*_runtests ' + \
+            exclude_str + \
             '--delete --delete-before '
             '--rsh "ssh -t -o StrictHostKeyChecking=no -i {key_filename}" '
             'src {user}@{host_string}:{project_dir}')
