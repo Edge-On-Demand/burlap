@@ -163,7 +163,11 @@ class JiraHelperSatchel(ContainerSatchel):
                     if next_transition_name:
                         if issue.fields.assignee:
                             if issue.fields.assignee.raw:
-                                assignee_name = issue.fields.assignee.name
+                                try:
+                                    assignee_name = issue.fields.assignee.name
+                                except AttributeError:
+                                    # <class 'jira.resources.UnknownResource'> object has no attribute 'name'
+                                    assignee_name = issue.fields.assignee.displayName
                             else:
                                 # Get assignee name directly
                                 # https://community.atlassian.com/t5/Jira-questions/Jira-in-Python-issue-fields-reporter-name-
