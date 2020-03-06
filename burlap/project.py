@@ -208,7 +208,7 @@ class ProjectSatchel(ContainerSatchel):
                     'burlap/role_settings.yaml.template',
                     extra=dict(project_name=project_name, site_name=site_name, role=_role)))
 
-        default_packages = pip_requirements.split(',')
+        default_packages = pip_requirements.split(',') if pip_requirements else []
         if default_packages:
             open('roles/all/pip-requirements.txt', 'w').write('\n'.join(default_packages))
 
@@ -221,20 +221,27 @@ class ProjectSatchel(ContainerSatchel):
         open('fabfile.py', 'w').write(content.strip()+'\n')
 
         print('Initializing local development virtual environment...')
-        os.system('virtualenv --no-site-packages %s' % virtualenv_dir)
-        for package in default_packages:
-            os.system('. %s/bin/activate; pip install %s; deactivate' % (virtualenv_dir, package))
+        os.system('python3 -m venv %s' % virtualenv_dir)
+        if default_packages:
+            os.system('. %s/bin/activate' % virtualenv_dir)
+            for package in default_packages:
+                cmd = 'pip install %s' % package
+                print('cmd:', cmd)
+                assert not os.system(cmd)
+            os.system('deactivate')
 
         # Install burlap dependencies.
         burlap_pip_requirements = os.path.join(os.path.dirname(burlap.__file__), 'fixtures/requirements.txt')
         print('burlap_pip_requirements:', burlap_pip_requirements)
         assert os.path.exists(burlap_pip_requirements), 'Missing requirements file: %s' % burlap_pip_requirements
+        os.system('. %s/bin/activate' % virtualenv_dir)
         for package in open(burlap_pip_requirements, 'r').readlines():
             if not package.strip():
                 continue
-            cmd = '%s/bin/pip install %s' % (virtualenv_dir, package)
+            cmd = 'pip install %s' % package
             print('cmd:', cmd)
             assert not os.system(cmd)
+        os.system('deactivate')
 
         print('Adding bash setup...')
         open('setup.bash', 'w').write(self.render_to_string('burlap/setup.bash.template'))

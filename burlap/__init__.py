@@ -1,10 +1,8 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
-import copy
 import logging
 import os
-import re
 import sys
 import types
 import importlib
@@ -12,7 +10,6 @@ import pkgutil
 import inspect
 import warnings
 import collections
-from pprint import pprint
 
 import json
 
@@ -48,7 +45,7 @@ try:
     yaml.add_representer(types.FunctionType, _represent_function)
 
 except ImportError as e:
-    print('Unable to initialize yaml: %s' % e, file=sys.stderr)
+    print('Unable to initialize fabric or yaml: %s' % e, file=sys.stderr)
 
 try:
     env
@@ -73,7 +70,7 @@ except (ImportError, NameError) as e:
     print('Unable to initialize debug: %s' % e, file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 72)
+VERSION = (0, 9, 73)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
