@@ -161,59 +161,31 @@ class JiraHelperSatchel(ContainerSatchel):
                     next_transition_id = transition_to_id.get(next_transition_name)
                     self.vprint('next_transition_id:', next_transition_id)
                     if next_transition_name:
-                        if issue.fields.assignee:
-                            if issue.fields.assignee.raw:
-                                try:
-                                    assignee_name = issue.fields.assignee.name
-                                except AttributeError:
-                                    # <class 'jira.resources.UnknownResource'> object has no attribute 'name'
-                                    assignee_name = issue.fields.assignee.displayName
-                            else:
-                                # Get assignee name directly
-                                # https://community.atlassian.com/t5/Jira-questions/Jira-in-Python-issue-fields-reporter-name-
-                                # errors-with-TypeError/qaq-p/937924
-                                assignee_name = issue.fields.assignee._session['name']
-                        else:
-                            assignee_name = None
+                        # Note: assignment should happen after transition, since the assignment may
+                        # remove transitions that we need.
+                        print('Updating ticket %s to status %s (%s).' % (ticket, next_transition_name, next_transition_id))
+                        if next_transition_id and not self.dryrun:
+                            try:
+                                jira.transition_issue(issue, next_transition_id)
+                                recheck = True
+                            except AttributeError as e:
+                                print('Unable to transition ticket %s to %s: %s' % (ticket, next_transition_name, e), file=sys.stderr)
+                                traceback.print_exc()
 
                         # Get new assignee by status
-                        new_assignee = self.env.assignee_by_status.get(
-                            #issue.fields.status.name.title(),
-                            next_transition_name,
-                            assignee_name,
-                        )
-
-                        # If assigning to reporter, get reporter name.
+                        new_assignee = self.env.assignee_by_status.get(next_transition_name)
                         if new_assignee == 'reporter':
-                            if issue.fields.reporter.raw:
-                                new_assignee = issue.fields.reporter.name
-                            else:
-                                # Get reporter name directly
-                                # https://community.atlassian.com/t5/Jira-questions/Jira-in-Python-issue-fields-reporter-name-
-                                # errors-with-TypeError/qaq-p/937924
-                                new_assignee = issue.fields.reporter._session['name']
+                            new_assignee = issue.fields.reporter
 
-                        print('Updating ticket %s to status %s (%s) and assigning it to %s.' % (ticket, next_transition_name, next_transition_id, new_assignee))
-                        if not self.dryrun:
-
-                            if next_transition_id:
+                        if new_assignee:
+                            print('Assigning ticket %s to %s.' % (ticket, new_assignee.displayName))
+                            if not self.dryrun:
                                 try:
-                                    jira.transition_issue(issue, next_transition_id)
-                                    recheck = True
-                                except AttributeError as e:
-                                    print('Unable to transition ticket %s to %s: %s' % (ticket, next_transition_name, e), file=sys.stderr)
-                                    traceback.print_exc()
-
-                            # Note assignment should happen after transition, since the assignment may
-                            # effect remove transitions that we need.
-                            try:
-                                if new_assignee:
-                                    print('Assigning ticket %s to %s.' % (ticket, new_assignee))
                                     jira.assign_issue(issue, new_assignee)
-                                else:
-                                    print('No new assignee found.')
-                            except JIRAError as e:
-                                print('Unable to reassign ticket %s to %s: %s' % (ticket, new_assignee, e), file=sys.stderr)
+                                except JIRAError as e:
+                                    print('Unable to reassign ticket %s to %s: %s' % (ticket, new_assignee, e), file=sys.stderr)
+                        else:
+                            print('No new assignee found.')
                     else:
                         recheck = False
                         print('No transitions found for ticket %s currently in status "%s".' % (ticket, issue.fields.status.name))
