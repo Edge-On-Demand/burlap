@@ -241,12 +241,15 @@ class DeploySatchel(ContainerSatchel):
         return component_order, plan_funcs
 
     @task
-    def preview(self, components=None, ask=0):
+    def preview(self, components=None, ask=0, show_issues=1):
         """
         Inspects differences between the last deployment and the current code state.
         """
+        from burlap.git import gittracker, CURRENT_COMMIT
+        from burlap.jirahelper import jirahelper
 
         ask = int(ask)
+        show_issues = int(show_issues)
 
         self.init()
 
@@ -264,6 +267,17 @@ class DeploySatchel(ContainerSatchel):
         if component_order:
             print()
 
+        if show_issues and gittracker.is_selected:
+            last_commit = gittracker.last_manifest.current_commit
+            self.vprint('last_commit:', last_commit)
+            current_commit = gittracker.current_manifest[CURRENT_COMMIT]
+            self.vprint('current_commit:', current_commit)
+
+            if last_commit and current_commit:
+                # Show tickets between last deployment and now.
+                tickets = jirahelper.get_tickets_between_commits(current_commit, last_commit)
+                print('\nIssues to be deployed: {}\n'.format(', '.join(tickets)))
+
         if ask and self.genv.host_string == self.genv.hosts[-1]:
             if component_order:
                 if not six.moves.input('Begin deployment? [yn] ').strip().lower().startswith('y'):
@@ -272,7 +286,7 @@ class DeploySatchel(ContainerSatchel):
                 sys.exit(0)
 
     @task
-    def push(self, components=None, yes=0):
+    def push(self, components=None, yes=0, show_issues=1):
         """
         Executes all satchel configurators to apply pending changes to the server.
         """
@@ -286,7 +300,7 @@ class DeploySatchel(ContainerSatchel):
                 # If we want to confirm the deployment with the user, and we're at the first server,
                 # then run the preview.
                 if self.genv.host_string == self.genv.hosts[0]:
-                    execute(partial(self.preview, components=components, ask=1))
+                    execute(partial(self.preview, components=components, ask=1, show_issues=show_issues))
 
             notifier.notify_pre_deployment()
             component_order, plan_funcs = self.get_component_funcs(components=components)
