@@ -420,21 +420,33 @@ class PostgreSQLSatchel(DatabaseSatchel):
         r.run('createlang -U postgres plpgsql {db_name} || true', ignore_errors=True)
 
     @task
-    def drop_connections(self, name=None, site=None):
+    def drop_connections(self, name=None, site=None, drop_other_usenames=0):
         """
-        Drop all connections to the target site database.
+        Drop non-root connections to the target site database.
 
-        Useful for preventing interference with a db snapshot load.
+        Useful for quickly killing deadlocks, or preventing interference with a db snapshot load.
+
+        Args:
+            name (str): db name
+            site (str): site slug
+            drop_other_usenames (int): If 1, also drop connections from other non-root usenames (sites).
         """
         site = site or self.genv.SITE
+        drop_other_usenames = int(drop_other_usenames)
+
         r = self.database_renderer(name=name, site=site)
         external_ip = (r.run('wget http://ipecho.net/plain -O - -q ; echo') or '').strip()
         if r.env.db_root_username == 'postgres' and r.env.db_host == external_ip:
             r.env.db_host = '127.0.0.1'
 
+        if drop_other_usenames:
+            r.env.usename_condition = "usename != '{db_root_username}'"
+        else:
+            r.env.usename_condition = "usename = '{SITE}'"
+
         self.execute(
             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' "
-            "AND usename != '{db_root_username}' AND application_name != 'psql';",
+            "AND {usename_condition} AND application_name != 'psql';",
             name=name, site=site, as_db_root_user=True, ignore_errors=True)
 
     @task
@@ -491,7 +503,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             self.execute("DROP SCHEMA IF EXISTS {db_schema} CASCADE;", name=name, site=site, as_db_root_user=True)
         else:
             # Disconnect all other users so we can drop the database if needed.
-            self.drop_connections(name=name, site=site)
+            self.drop_connections(name=name, site=site, drop_other_usenames=1)
             self.execute("DROP DATABASE IF EXISTS {db_name};", name=name, site=site, as_db_root_user=True, no_db=True)
             self.execute("CREATE DATABASE {db_name};", name=name, site=site, as_db_root_user=True, no_db=True)
 
