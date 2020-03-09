@@ -183,7 +183,7 @@ class JiraHelperSatchel(ContainerSatchel):
                                 try:
                                     jira.assign_issue(issue, new_assignee)
                                 except JIRAError as e:
-                                    print('Unable to reassign ticket %s to %s: %s' % (ticket, new_assignee, e), file=sys.stderr)
+                                    print('Unable to reassign ticket %s to %s: %s' % (ticket, new_assignee.displayName, e), file=sys.stderr)
                         else:
                             print('No new assignee found.')
                     else:
