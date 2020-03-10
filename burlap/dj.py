@@ -908,7 +908,7 @@ class DjangoSatchel(Satchel):
         else:
             self.vprint('No new migrations.')
 
-    @task(precursors=['packager', 'tarball'])
+    @task(precursors=['packager', 'tarball', 'pip'])
     def configure(self, *args, **kwargs):
         if self.env.manage_media:
             self.configure_media()
