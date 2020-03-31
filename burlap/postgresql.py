@@ -333,7 +333,10 @@ class PostgreSQLSatchel(DatabaseSatchel):
         return ret
 
     @task
-    def execute(self, sql, name='default', site=None, as_db_root_user=False, ignore_errors=False, no_db=False, pager=True, **kwargs):
+    def execute(
+        self, sql, name='default', site=None, as_db_root_user=False, ignore_errors=False, no_db=False, no_pager=False,
+        **kwargs
+    ):
         """
         Run SQL command with psql.
 
@@ -344,7 +347,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             as_db_root_user (int/bool): If truthy, run as db_root_username; otherwise, run as db_user
             ignore_errors (int/bool): If truthy, wrap task in settings(warn_only=True)
             no_db (int/bool): If truthy, omit --dbname argument (as when creating a database)
-            pager (int/bool): If falsy, disable psql pager, to prevent interactive less-style prompt.
+            no_pager (int/bool): If truthy, disable psql pager, to prevent interactive less-style prompt.
         """
         r = self.database_renderer(name=name, site=site)
 
@@ -353,7 +356,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             sql += ';' # Terminate SQL statements with semicolon
         r.env.sql = sql
         r.env.dbname_arg = '' if no_db else f'--dbname {r.env.db_name}'
-        r.env.pager_arg = '' if pager else '-P pager=off'
+        r.env.pager_arg = '-P pager=off' if int(no_pager) else ''
 
         if as_db_root_user and r.env.db_host in {'localhost', '127.0.0.1'}:
             # Run locally as db root user with sudo -U, relying on pg_hba.conf or other Postgres auth
