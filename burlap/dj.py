@@ -424,9 +424,13 @@ class DjangoSatchel(Satchel):
                 pass
 
     @task
-    def manage(self, cmd, *args, **kwargs):
+    def manage(self, cmd, site=None, *args, **kwargs):
         """
         A generic wrapper around Django's manage command.
+
+        Args:
+            cmd: Command to run
+            site: Site to migrate (defaults to all if neither site nor self.genv.SITE is set)
         """
         r = self.local_renderer
         environs = kwargs.pop('environs', '').strip()
@@ -442,14 +446,31 @@ class DjangoSatchel(Satchel):
         r.env.environs = environs
         if self.is_local:
             r.env.project_dir = r.env.local_project_dir
-        r.run_or_local('export SITE={SITE}; export ROLE={ROLE};{environs} cd {project_dir}; {manage_cmd} {cmd} {args} {kwargs}')
+
+        site = site or self.genv.SITE or ALL
+        for _site, site_data in self.iter_unique_databases(site=site):
+            if self.verbose:
+                print('-'*80, file=sys.stderr)
+                print('site:', _site, file=sys.stderr)
+            if self.env.available_sites_by_host:
+                hostname = self.current_hostname
+                sites_on_host = self.env.available_sites_by_host.get(hostname, [])
+                if sites_on_host and _site not in sites_on_host:
+                    self.vprint('skipping site:', _site, sites_on_host, file=sys.stderr)
+                    continue
+            r.run_or_local(
+                'export SITE={SITE}; export ROLE={ROLE};{environs} cd {project_dir}; {manage_cmd} {cmd} {args} {kwargs}'
+            )
 
     @task
     def manage_all(self, *args, **kwargs):
         """
         Runs manage() across all unique site default databases.
+
+        DEPRECATED. Use manage(), which defaults to all sites.
+        TODO: Remove
         """
-        for site, site_data in self.iter_unique_databases(site='all'):
+        for site, site_data in self.iter_unique_databases(site=ALL):
             if self.verbose:
                 print('-'*80, file=sys.stderr)
                 print('site:', site, file=sys.stderr)
@@ -677,7 +698,10 @@ class DjangoSatchel(Satchel):
         return tuple(r.env.version)
 
     @task
-    def migrate(self, app='', migration='', site=None, fake=0, ignore_errors=None, skip_databases=None, database=None, migrate_apps='', delete_ghosts=1):
+    def migrate(
+        self, app='', migration='', site=None, fake=0, ignore_errors=None, database=None, migrate_apps='',
+        delete_ghosts=1
+    ):
         # pylint: disable=anomalous-backslash-in-string
         """
         Runs the standard South migrate command for one or more sites.
@@ -685,10 +709,9 @@ class DjangoSatchel(Satchel):
         Args:
             app: App to migrate (appended to migrate_apps)
             migration: Name of migration (defaults to all)
-            site: Site to migrate (defaults to all)
+            site: Site to migrate (defaults to all if neither site nor self.genv.SITE is set)
             fake: If truthy, fake migrations
             ignore_errors: If truthy, print and ignore migration failures (defaults to r.env.ignore_migration_errors)
-            skip_databases: Unused, deprecated
             database: Database on which to migrate apps
             migrate_apps: Apps to migrate (defaults to all)
             delete_ghosts: Delete ghost migrations (South-only)
@@ -732,11 +755,10 @@ class DjangoSatchel(Satchel):
         if self.is_local:
             r.env.project_dir = r.env.local_project_dir
 
-        # CS 2017-3-29 Don't bypass the iterator. That causes reversion to the global env that could corrupt the generated commands.
-        #databases = list(self.iter_unique_databases(site=site))#TODO:remove
-        # CS 2017-4-24 Don't specify a single site as the default when none is supplied. Otherwise all other sites will be ignored.
-        #site = site or self.genv.SITE
-        site = site or ALL
+        site = site or self.genv.SITE or ALL
+        # CS 2017-3-29 Don't bypass the iterator. That causes reversion to the global env that could corrupt the
+        # generated commands.
+        #databases = list(self.iter_unique_databases(site=site))
         databases = self.iter_unique_databases(site=site)
         for _site, site_data in databases:
             self.vprint('-'*80, file=sys.stderr)
@@ -764,11 +786,6 @@ class DjangoSatchel(Satchel):
                         '{manage_cmd} migrate --noinput {migrate_merge} --traceback '
                         '{migrate_database} {delete_ghosts} {migrate_app} {migrate_migration} '
                         '{migrate_fake_str}')
-
-    @task
-    def migrate_all(self, *args, **kwargs):
-        kwargs['site'] = 'all'
-        return self.migrate(*args, **kwargs)
 
     @task
     def truncate(self, app):
