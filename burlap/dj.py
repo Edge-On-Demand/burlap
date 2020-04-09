@@ -889,7 +889,6 @@ class DjangoSatchel(Satchel):
         manifest = super(DjangoSatchel, self).record_manifest()
         manifest['latest_timestamp'] = self.get_media_timestamp()
         manifest['migrations'] = self.get_migration_fingerprint()
-        manifest['sdlkfjsd'] = 123#TODO
         return manifest
 
     @task(precursors=['packager', 'pip'])
@@ -921,7 +920,7 @@ class DjangoSatchel(Satchel):
         if migrate_apps:
             self.vprint('%i apps with new migrations found: %s' % (len(migrate_apps), migrate_apps))
             self.vprint('ignore_migration_errors:', self.env.ignore_migration_errors)
-            self.migrate()
+            self.migrate(site=ALL)
         else:
             self.vprint('No new migrations.')
 
