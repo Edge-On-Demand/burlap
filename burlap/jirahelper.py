@@ -154,9 +154,9 @@ class JiraHelperSatchel(ContainerSatchel):
                         pprint(transition_to_id)
                     self.vprint('issue.fields.status.id:', issue.fields.status.id)
                     self.vprint('issue.fields.status.name:', issue.fields.status.name)
-                    jira_status_id = issue.fields.status.name.title()
-                    self.vprint('jira_status_id:', jira_status_id)
-                    next_transition_name = self.env.deploy_workflow.get(jira_status_id)
+                    jira_status_name = issue.fields.status.name
+                    self.vprint('jira_status_name:', jira_status_name)
+                    next_transition_name = self.env.deploy_workflow.get(jira_status_name)
                     self.vprint('next_transition_name:', next_transition_name)
                     next_transition_id = transition_to_id.get(next_transition_name)
                     self.vprint('next_transition_id:', next_transition_id)
