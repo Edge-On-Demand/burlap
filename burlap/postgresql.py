@@ -501,11 +501,14 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         # Drop/create schema/db
         if r.env.schema_mt:
-            # db may already exist on multitenant sites. Use ignore_errors in place of missing "IF EXISTS" syntax
+            # db may already exist on multitenant sites.
+            # Use ignore_errors in place of missing "IF EXISTS" syntax for CREATE DATABASE.
             self.execute("CREATE DATABASE {db_name};", name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
+            # Disconnect all other users so we can drop the schema if it exists.
+            self.drop_connections(name=name, site=site)
             self.execute("DROP SCHEMA IF EXISTS {db_schema} CASCADE;", name=name, site=site, as_db_root_user=True)
         else:
-            # Disconnect all other users so we can drop the database if needed.
+            # Disconnect all other users so we can drop the database if it exists.
             self.drop_connections(name=name, site=site, drop_other_usenames=1)
             self.execute("DROP DATABASE IF EXISTS {db_name};", name=name, site=site, as_db_root_user=True, no_db=True)
             self.execute("CREATE DATABASE {db_name};", name=name, site=site, as_db_root_user=True, no_db=True)
