@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import os
 import sys
 
@@ -18,7 +16,6 @@ def read(filename):
     path = os.path.join(os.path.dirname(__file__), filename)
     with open(path, 'rb') as fin:
         text = fin.read().decode('utf-8')
-    #data.decode("utf8", "ignore")
     return text
 
 def get_reqs(fn):
@@ -81,9 +78,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     install_requires=get_reqs('burlap/fixtures/requirements.txt'),
-    #setup_requires=[],
     tests_require=get_reqs('requirements-test.txt'),
-    cmdclass={
-        'test': Tox,
-    },
+    extras_require={'aws': ['boto>=2.49.0']},
+    cmdclass={'test': Tox},
 )

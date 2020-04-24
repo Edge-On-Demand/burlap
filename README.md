@@ -26,6 +26,8 @@ Install the package via pip with:
 
     pip install burlap
 
+To use the `boto` package for AWS support, install with `pip install burlap[aws]`.
+
 Quickstart & Usage
 ------------------
 
