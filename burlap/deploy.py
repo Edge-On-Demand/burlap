@@ -314,6 +314,10 @@ class DeploySatchel(ContainerSatchel):
             service.post_deploy()
             notifier.notify_post_deployment()
 
+        except Exception:
+            notifier.notify_failed_deployment()
+            raise
+
         finally:
             self.unlock()
 
