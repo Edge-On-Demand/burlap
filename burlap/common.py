@@ -96,7 +96,7 @@ def init_env():
     env.available_sites_by_host = {}
 
     # The command run to determine the percent of disk usage.
-    env.disk_usage_command = "df -H | grep -vE '^Filesystem|tmpfs|cdrom|none' | awk '{print $5 $1}'"
+    env.disk_usage_command = "df -H | grep -vE '^Filesystem|tmpfs|cdrom|none' | awk '{print $5 \" \" $1}'"
 
     env.burlap_data_dir = '.burlap'
 
