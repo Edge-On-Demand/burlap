@@ -10,6 +10,10 @@ from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
 
+PRE_DEPLOYMENT = 'pre'
+POST_DEPLOYMENT = 'post'
+FAILED_DEPLOYMENT = 'failed'
+
 
 class DeploymentNotifierSatchel(Satchel):
 
@@ -61,19 +65,26 @@ class DeploymentNotifierSatchel(Satchel):
             message='Test',
             recipient_list=self.env.email_recipient_list)
 
-    @task
-    def notify_deployment(self, is_post_deployment, subject=None, message=None, force=0):
+    def notify_deployment(self, action, subject=None, message=None, force=0):
         """
-        Send email notifying recipients of deploy start or completion.
+        Send email notifying recipients of deploy start, completion, or failure.
         """
         force = int(force)
 
-        if is_post_deployment:
-            subject = subject or '%s Deployment Complete' % self.genv.ROLE.title()
-            message = message or 'Deployment to %s is complete.' % self.genv.ROLE
-        else:
-            subject = subject or '%s Deployment Started' % self.genv.ROLE.title()
-            message = message or 'Deployment to %s has started.' % self.genv.ROLE
+        if not subject:
+            subject = {
+                PRE_DEPLOYMENT: '%s Deployment Started' % self.genv.ROLE.title(),
+                POST_DEPLOYMENT: '%s Deployment Complete' % self.genv.ROLE.title(),
+                FAILED_DEPLOYMENT: '%s Deployment Failed' % self.genv.ROLE.title(),
+            }[action]
+
+        if not message:
+            message = {
+                PRE_DEPLOYMENT: 'Deployment to %s has started.' % self.genv.ROLE,
+                POST_DEPLOYMENT: 'Deployment to %s is complete.' % self.genv.ROLE,
+                FAILED_DEPLOYMENT: 'Deployment to %s has failed.' % self.genv.ROLE,
+            }[action]
+
 
         if self.dryrun:
             self.print_command('echo -e "{body}" | mail -s "{subject}" {recipients}'.format(
@@ -81,8 +92,10 @@ class DeploymentNotifierSatchel(Satchel):
                 body=message.replace('\n', '\\n'),
                 subject=subject,
             ))
-        elif force or (
-            self.env.email_enabled and self.genv.host_string == self.genv.hosts[-1 * is_post_deployment]
+        elif force or self.env.email_enabled and (
+            action == FAILED_DEPLOYMENT
+            or action == PRE_DEPLOYMENT and self.genv.host_string == self.genv.hosts[0]
+            or action == POST_DEPLOYMENT and self.genv.host_string == self.genv.hosts[-1]
         ):
             self.send_email(
                 subject=subject,
@@ -91,11 +104,15 @@ class DeploymentNotifierSatchel(Satchel):
 
     @task
     def notify_pre_deployment(self, subject=None, message=None, force=0):
-        self.notify_deployment(is_post_deployment=False, subject=subject, message=message, force=force)
+        self.notify_deployment(action=PRE_DEPLOYMENT, subject=subject, message=message, force=force)
 
     @task
     def notify_post_deployment(self, subject=None, message=None, force=0):
-        self.notify_deployment(is_post_deployment=True, subject=subject, message=message, force=force)
+        self.notify_deployment(action=POST_DEPLOYMENT, subject=subject, message=message, force=force)
+
+    @task
+    def notify_failed_deployment(self, subject=None, message=None, force=0):
+        self.notify_deployment(action=FAILED_DEPLOYMENT, subject=subject, message=message, force=force)
 
     @task
     def configure(self):
@@ -155,6 +172,7 @@ class LoginNotifierSatchel(Satchel):
 deployment_notifier = DeploymentNotifierSatchel()
 notify_pre_deployment = deployment_notifier.notify_pre_deployment
 notify_post_deployment = deployment_notifier.notify_post_deployment
+notify_failed_deployment = deployment_notifier.notify_failed_deployment
 send_email = deployment_notifier.send_email
 
 login_notifier = LoginNotifierSatchel()
