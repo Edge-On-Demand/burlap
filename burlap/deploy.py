@@ -2,12 +2,11 @@ from __future__ import print_function
 
 import sys
 import socket
+from io import BytesIO
 from pprint import pprint
 from functools import partial
 
 import yaml
-
-import six
 
 from fabric.api import execute, get
 
@@ -104,7 +103,10 @@ class DeploySatchel(ContainerSatchel):
         """
         Returns a dictionary representing the current configuration state.
 
-        Thumbprint is of the form:
+        Args:
+            components (str): Comma-separated list of components to deploy
+        Returns:
+            Thumbprint of the form:
 
             {
                 component_name1: {key: value},
@@ -139,7 +141,10 @@ class DeploySatchel(ContainerSatchel):
         """
         Returns a dictionary representing the previous configuration state.
 
-        Thumbprint is of the form:
+        Args:
+            components (str): Comma-separated list of components to deploy
+        Returns:
+            Thumbprint of the form:
 
             {
                 component_name1: {key: value},
@@ -151,7 +156,7 @@ class DeploySatchel(ContainerSatchel):
         components = str_to_component_list(components)
         tp_fn = self.manifest_filename
         if self.file_exists(tp_fn):
-            fd = six.BytesIO()
+            fd = BytesIO()
             get(tp_fn, fd)
             tp_text = fd.getvalue()
             manifest_data = {}
@@ -217,6 +222,11 @@ class DeploySatchel(ContainerSatchel):
     def get_component_funcs(self, components=None):
         """
         Calculates the components functions that need to be executed for a deployment.
+
+        Args:
+            components (str): Comma-separated list of components to deploy
+        Returns:
+            (component_order, plan_funcs)
         """
 
         current_tp = self.get_current_thumbprint(components=components) or {}
@@ -244,6 +254,11 @@ class DeploySatchel(ContainerSatchel):
     def preview(self, components=None, ask=0, show_issues=1):
         """
         Inspects differences between the last deployment and the current code state.
+
+        Args:
+            components (str): Comma-separated list of components to deploy
+            ask (cast to int): Show confirmation prompt
+            show_issues (cast to int): Show Jira issues linked to previewed commits
         """
         from burlap.git import gittracker, CURRENT_COMMIT
         from burlap.jirahelper import jirahelper
@@ -280,27 +295,36 @@ class DeploySatchel(ContainerSatchel):
 
         if ask and self.genv.host_string == self.genv.hosts[-1]:
             if component_order:
-                if not six.moves.input('Begin deployment? [yn] ').strip().lower().startswith('y'):
+                if not input('Begin deployment? [yn] ').strip().lower().startswith('y'):
                     sys.exit(0)
             else:
                 sys.exit(0)
 
     @task
-    def push(self, components=None, yes=0, show_issues=1):
+    def push(self, components=None, yes=0, show_preview=0, show_issues=1):
         """
         Executes all satchel configurators to apply pending changes to the server.
+
+        Args:
+            components (str): Comma-separated list of components to deploy
+            yes (cast to int): Bypass confirmation prompt
+            show_preview (cast to int): Show deploy preview even if confirmation prompt is bypassed
+            show_issues (cast to int): Show Jira issues linked to previewed commits
         """
         from burlap import notifier # pylint: disable=import-outside-toplevel
+
         service = self.get_satchel('service')
+        yes = int(yes)
+        show_preview = not yes or int(show_preview)
+        show_issues = int(show_issues)
         self.lock()
         try:
 
-            yes = int(yes)
-            if not yes:
+            if show_preview:
                 # If we want to confirm the deployment with the user, and we're at the first server,
                 # then run the preview.
                 if self.genv.host_string == self.genv.hosts[0]:
-                    execute(partial(self.preview, components=components, ask=1, show_issues=show_issues))
+                    execute(partial(self.preview, components=components, ask=not yes, show_issues=show_issues))
 
             notifier.notify_pre_deployment()
             component_order, plan_funcs = self.get_component_funcs(components=components)
