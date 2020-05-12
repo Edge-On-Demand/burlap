@@ -437,6 +437,8 @@ class PostgreSQLSatchel(DatabaseSatchel):
         site = site or self.genv.SITE
         drop_other_usenames = int(drop_other_usenames)
 
+        print('Dropping database connections...')
+
         r = self.database_renderer(name=name, site=site)
         external_ip = (r.run('wget http://ipecho.net/plain -O - -q ; echo') or '').strip()
         if r.env.db_root_username == 'postgres' and r.env.db_host == external_ip:
