@@ -424,7 +424,7 @@ class DjangoSatchel(Satchel):
                 pass
 
     @task
-    def manage(self, cmd, site=None, *args, **kwargs):
+    def manage(self, cmd, *args, site=None, **kwargs):
         """
         A generic wrapper around Django's manage command.
 
