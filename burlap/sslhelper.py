@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import os
-import sys
 import re
 from datetime import datetime, date
 
@@ -30,6 +29,15 @@ class SSLSatchel(ServiceSatchel):
         self.env.days = 365
         self.env.length = 4096
         self.env.domain = ''
+        self.env.self_signed_certificate_command = 'openssl req -new -newkey rsa:{sslhelper_length} ' \
+            '-days {sslhelper_days} -nodes -x509 ' \
+            '-subj "/C={sslhelper_country}/ST={sslhelper_state}/L={sslhelper_city}/O={sslhelper_organization}/' \
+            'CN={domain}" ' \
+            '-keyout {sslhelper_base_dst}.key -out {sslhelper_base_dst}.crt'
+        self.env.generate_csr_command = 'openssl req -nodes -newkey rsa:{sslhelper_length} ' \
+            '-subj "/C={sslhelper_country}/ST={sslhelper_state}/L={sslhelper_city}/O={sslhelper_organization}/' \
+            'CN={domain}" ' \
+            '-keyout {sslhelper_base_dst}.{sslhelper_csr_year}.key -out {sslhelper_base_dst}.{sslhelper_csr_year}.csr'
 
     @task
     def generate_self_signed_certificate(self, domain='', r=None):
@@ -47,10 +55,7 @@ class SSLSatchel(ServiceSatchel):
         if not os.path.isdir(ssl_dst):
             os.makedirs(ssl_dst)
         r.env.base_dst = '%s/%s' % (ssl_dst, r.env.domain)
-        r.local('openssl req -new -newkey rsa:{ssl_length} '
-            '-days {ssl_days} -nodes -x509 '
-            '-subj "/C={ssl_country}/ST={ssl_state}/L={ssl_city}/O={ssl_organization}/CN={ssl_domain}" '
-            '-keyout {ssl_base_dst}.key -out {ssl_base_dst}.crt')
+        r.local(r.env.self_signed_certificate_command)
 
     @task
     @runs_once
@@ -66,20 +71,14 @@ class SSLSatchel(ServiceSatchel):
         r.env.domain = domain or r.env.domain
         role = self.genv.ROLE or ALL
         site = self.genv.SITE or self.genv.default_site
-        print('self.genv.default_site:', self.genv.default_site, file=sys.stderr)
-        print('site.csr0:', site, file=sys.stderr)
         ssl_dst = 'roles/%s/ssl' % (role,)
-        print('ssl_dst:', ssl_dst)
         if not os.path.isdir(ssl_dst):
             os.makedirs(ssl_dst)
         for site, site_data in self.iter_sites():
-            print('site.csr1:', site, file=sys.stderr)
             assert r.env.domain, 'No SSL domain defined.'
-            r.env.ssl_base_dst = '%s/%s' % (ssl_dst, r.env.domain.replace('*.', ''))
-            r.env.ssl_csr_year = date.today().year
-            r.local('openssl req -nodes -newkey rsa:{ssl_length} '
-                '-subj "/C={ssl_country}/ST={ssl_state}/L={ssl_city}/O={ssl_organization}/CN={ssl_domain}" '
-                '-keyout {ssl_base_dst}.{ssl_csr_year}.key -out {ssl_base_dst}.{ssl_csr_year}.csr')
+            r.env.sslhelper_base_dst = '%s/%s' % (ssl_dst, r.env.domain.replace('*.', ''))
+            r.env.sslhelper_csr_year = date.today().year
+            r.local(r.env.generate_csr_command)
 
     def get_expiration_date(self, fn):
         """
@@ -88,7 +87,7 @@ class SSLSatchel(ServiceSatchel):
         r = self.local_renderer
         r.env.crt_fn = fn
         with hide('running'):
-            ret = r.local('openssl x509 -noout -in {ssl_crt_fn} -dates', capture=True)
+            ret = r.local('openssl x509 -noout -in {sslhelper_crt_fn} -dates', capture=True)
         matches = re.findall('notAfter=(.*?)$', ret, flags=re.IGNORECASE)
         if matches:
             return dateutil.parser.parse(matches[0])
@@ -114,7 +113,6 @@ class SSLSatchel(ServiceSatchel):
         print('%s %s %s' % ('Filename'.ljust(max_fn_len), 'Expiration Date'.ljust(max_date_len), 'Expired'))
         now = datetime.now().replace(tzinfo=pytz.UTC)
         for fn, dt in sorted(data):
-
             if dt is None:
                 expired = '?'
             elif dt < now:

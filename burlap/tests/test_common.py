@@ -324,7 +324,7 @@ set_by_include3: 'some special setting'
             'INADYN', 'IP', 'JIRAHELPER', 'JSHINT', 'LOCALES', 'LOGINNOTIFIER', 'MANIFEST', 'MONGODB', 'MOTION', 'MYSQL', 'MYSQLCLIENT', 'NM',
             'NTPCLIENT', 'PACKAGER', 'PHANTOMJS', 'PIP', 'POSTFIX', 'POSTGRESQL', 'POSTGRESQLCLIENT', 'PROJECT',
             'RABBITMQ', 'RDS', 'RPI', 'RSYNC', 'S3', 'SELENIUM', 'SERVICE', 'SNORT', 'SOFTWARERAID',
-            'SSHNICE', 'SSL', 'SUPERVISOR', 'TARBALL', 'TIMEZONE', 'UBUNTUMULTIVERSE',
+            'SSHNICE', 'SSLHELPER', 'SUPERVISOR', 'TARBALL', 'TIMEZONE', 'UBUNTUMULTIVERSE',
             'UNATTENDEDUPGRADES', 'USER', 'VAGRANT', 'VIRTUALBOX',
         ]
         print('expected satchels:\n', expected)
