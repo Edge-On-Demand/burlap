@@ -124,9 +124,6 @@ class DjangoSatchel(Satchel):
 
         self.env.ignore_migration_errors = 0
 
-        # The relative or absolute path of the root static directory where collect_static places content.
-        self.env.static_root = 'static'
-
         # Modules whose name start with one of these values will be deleted before settings are imported.
         self.env.delete_module_with_prefixes = []
 
@@ -556,12 +553,16 @@ class DjangoSatchel(Satchel):
 
         return settings
 
-    def iter_static_paths(self, ignore_import_error=False):
+    def iter_static_paths(self):
+        """
+        Iterate through static source files and yield the absolute path for each file.
+        """
+        from django.contrib.staticfiles import finders
+
         self.load_django_settings()
-        from django.contrib.staticfiles import finders, storage
         for finder in finders.get_finders():
-            for path, _storage in finder.list(ignore_patterns=[]):
-                yield path
+            for path, storage in finder.list(ignore_patterns=[]):
+                yield storage.path(path)
 
     def iter_app_directories(self, ignore_import_error=False):
         settings = self.load_django_settings()
@@ -843,13 +844,9 @@ class DjangoSatchel(Satchel):
 
         If last_timestamp is given, retrieve the first timestamp more recent than this value.
         """
-        r = self.local_renderer
         _latest_timestamp = float('-inf')
         for path in self.iter_static_paths():
-            path = r.env.static_root + '/' + path
             self.vprint('checking timestamp of path:', path)
-            if not os.path.isfile(path):
-                continue
             _latest_timestamp = max(_latest_timestamp, os.path.getmtime(path) or _latest_timestamp)
             if last_timestamp is not None and _latest_timestamp > last_timestamp:
                 break
