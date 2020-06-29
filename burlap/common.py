@@ -1387,7 +1387,7 @@ class Satchel:
         r = self.local_renderer
         site = site or self.genv.SITE
         site_data = self.genv.sites[site].copy()
-        r.env.site = site
+        r.env.SITE = site
         if self.verbose:
             print('set_site_specifics.data:')
             pprint(site_data, indent=4)
