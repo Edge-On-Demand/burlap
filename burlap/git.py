@@ -341,21 +341,21 @@ class GitTrackerSatchel(Satchel):
     def packager_system_packages(self):
         return {
             UBUNTU: ['git'],
-            (UBUNTU, '12.04'): ['git'],
-            (UBUNTU, '14.04'): ['git'],
-            (UBUNTU, '16.04'): ['git'],
         }
 
     def set_defaults(self):
         self.env.callbacks = []
 
-    def get_logs_between_commits(self, a, b):
+    def get_logs_between_commits(self, old_commit, new_commit):
         """
-        Retrieves all commit messages for all commits between the given commit numbers
-        on the current branch.
+        Retrieve commit messages for all commits between the given commit hashes.
+
+        This uses an asymmetric diff, so will not return logs for commits descending from old_commit but not new_commit.
+
+        Returns:
+            str: git log output, containing full commit hashes and messages, delimited by newlines
         """
-        self.vprint('REAL')
-        ret = self.local('git --no-pager log --pretty=oneline %s...%s' % (a, b), capture=True)
+        ret = self.local('git --no-pager log --pretty=oneline %s..%s' % (old_commit, new_commit), capture=True)
         if self.verbose:
             print(ret)
         return str(ret)

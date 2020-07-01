@@ -32,20 +32,41 @@ class JiraHelperSatchel(ContainerSatchel):
         self.env.ticket_pattern = None
 
     def get_tickets_from_str(self, s):
-        pattern = re.compile(self.env.ticket_pattern, flags=re.I)
-        tickets = []
+        """
+        From a string, get all Jira issue keys matching a pattern.
+
+        Args:
+            s (str): String containing zero or more Jira issue keys
+
+        Returns:
+            tickets (set): Jira issue key strings
+        """
         if self.env.ticket_pattern:
-            pattern = re.compile(self.env.ticket_pattern, flags=re.I)
-            tickets.extend(pattern.findall(s))
-        return set(_.strip().upper() for _ in tickets)
+            pattern = re.compile(self.env.ticket_pattern, flags=re.IGNORECASE)
+            tickets = pattern.findall(s)
+        else:
+            tickets = []
+        return {ticket.strip().upper() for ticket in tickets}
 
     @task
-    def get_tickets_between_commits(self, a, b):
+    def get_tickets_between_commits(self, old_commit, new_commit):
+        """
+        Retrieve all Jira issue linked to commits between the given commit numbers on the current branch.
+
+        Args:
+            old_commit (str): Hash of ancestor git commit
+            new_commit (str): Hash of descendant git commit
+
+        Returns:
+            tickets (set): Jira issue key strings corresponding to the new commits
+        """
         from burlap.git import gittracker
-        tickets = []
+
         if self.env.ticket_pattern:
-            ret = gittracker.get_logs_between_commits(a, b)
-            tickets.extend(self.get_tickets_from_str(ret))
+            commit_logs = gittracker.get_logs_between_commits(old_commit, new_commit)
+            tickets = self.get_tickets_from_str(commit_logs)
+        else:
+            tickets = set()
         self.vprint(tickets)
         return tickets
 

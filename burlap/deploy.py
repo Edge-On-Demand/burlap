@@ -290,7 +290,7 @@ class DeploySatchel(ContainerSatchel):
 
             if last_commit and current_commit:
                 # Show tickets between last deployment and now.
-                tickets = jirahelper.get_tickets_between_commits(current_commit, last_commit)
+                tickets = jirahelper.get_tickets_between_commits(last_commit, current_commit)
                 print('\nIssues to be deployed: {}\n'.format(', '.join(tickets) or 'None'))
 
         if ask and self.genv.host_string == self.genv.hosts[-1]:
