@@ -146,7 +146,7 @@ class JiraHelperSatchel(ContainerSatchel):
 #         current_commit = current['GITTRACKER']['current_commit']
 
         # Find all tickets deployed between last deployment and now.
-        tickets = self.get_tickets_between_commits(current_commit, last_commit)
+        tickets = self.get_tickets_between_commits(last_commit, current_commit)
         self.vprint('tickets:', tickets)
 
         # Update all tickets in Jira.
