@@ -395,8 +395,8 @@ class DjangoSatchel(Satchel):
         r.env.options_str = ' '.join(options)
         if self.is_local:
             r.env.project_dir = r.env.local_project_dir
-        r.genv.SITE = r.genv.SITE or site
-        r.run_or_local('export SITE={SITE}; export ROLE={ROLE}; {createsuperuser_export_cmd} cd {project_dir}; ' \
+        r.run_or_local(
+            'export SITE={SITE}; export ROLE={ROLE}; {createsuperuser_export_cmd} cd {project_dir}; '
             '{manage_cmd} {createsuperuser_cmd} {options_str}')
 
     @task
