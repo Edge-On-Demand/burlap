@@ -2,10 +2,7 @@ from __future__ import print_function
 
 import os
 import shutil
-try:
-    from commands import getoutput
-except ImportError:
-    from subprocess import getoutput
+from subprocess import getoutput
 
 from burlap.constants import *
 from burlap.common import get_satchel
@@ -33,8 +30,7 @@ class PipTests(TestCase):
                     print('PyYAML\n', file=fout)
 
                 # Install without the quiet flag
-                pip_satchel.verbose = GLOBAL_VERBOSE
-                pip_satchel.env.quiet_flag = ''
+                pip_satchel.verbose = 0
                 pip_satchel.env.virtualenv_dir = '%s/.env' % d
                 pip_satchel.configure()
 
@@ -48,7 +44,6 @@ class PipTests(TestCase):
 
                 # Install with the quiet flag
                 pip_satchel.verbose = GLOBAL_VERBOSE
-                pip_satchel.env.quiet_flag = ' -q '
                 pip_satchel.configure()
 
                 self.assertTrue(os.path.isdir('.env'))
