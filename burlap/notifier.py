@@ -1,18 +1,13 @@
 """
-Helper functions for sending a notification email after each deployment.
+Helper functions for sending a notification email before and after each deployment, and on deployment failures.
 """
-from __future__ import print_function
-
 import smtplib
+import traceback
 from email.mime.text import MIMEText
 
 from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
-
-PRE_DEPLOYMENT = 'pre'
-POST_DEPLOYMENT = 'post'
-FAILED_DEPLOYMENT = 'failed'
 
 
 class DeploymentNotifierSatchel(Satchel):
@@ -30,9 +25,17 @@ class DeploymentNotifierSatchel(Satchel):
         self.env.email_recipient_list = []
 
     def send_email(self, subject, message, from_email=None, recipient_list=None):
-
         recipient_list = recipient_list or []
         if not recipient_list:
+            self.vprint('send_email() aborted: No recipient_list.')
+            return
+
+        if self.dryrun:
+            self.print_command('echo -e "{body}" | mail -s "{subject}" {recipients}'.format(
+                recipients=','.join(self.env.email_recipient_list),
+                body=message.replace('\n', '\\n'),
+                subject=subject,
+            ))
             return
 
         from_email = from_email or self.env.email_host_user
@@ -65,54 +68,49 @@ class DeploymentNotifierSatchel(Satchel):
             message='Test',
             recipient_list=self.env.email_recipient_list)
 
-    def notify_deployment(self, action, subject=None, message=None, force=0):
+    @task
+    def notify_pre_deployment(self, subject=None, message=None, force=0):
         """
-        Send email notifying recipients of deploy start, completion, or failure.
+        Send email notifying recipients of deploy start.
         """
         force = int(force)
 
-        if not subject:
-            subject = {
-                PRE_DEPLOYMENT: '%s Deployment Started' % self.genv.ROLE.title(),
-                POST_DEPLOYMENT: '%s Deployment Complete' % self.genv.ROLE.title(),
-                FAILED_DEPLOYMENT: '%s Deployment Failed' % self.genv.ROLE.title(),
-            }[action]
-
-        if not message:
-            message = {
-                PRE_DEPLOYMENT: 'Deployment to %s has started.' % self.genv.ROLE,
-                POST_DEPLOYMENT: 'Deployment to %s is complete.' % self.genv.ROLE,
-                FAILED_DEPLOYMENT: 'Deployment to %s has failed.' % self.genv.ROLE,
-            }[action]
-
-
-        if self.dryrun:
-            self.print_command('echo -e "{body}" | mail -s "{subject}" {recipients}'.format(
-                recipients=','.join(self.env.email_recipient_list),
-                body=message.replace('\n', '\\n'),
-                subject=subject,
-            ))
-        elif force or self.env.email_enabled and (
-            action == FAILED_DEPLOYMENT
-            or action == PRE_DEPLOYMENT and self.genv.host_string == self.genv.hosts[0]
-            or action == POST_DEPLOYMENT and self.genv.host_string == self.genv.hosts[-1]
-        ):
-            self.send_email(
-                subject=subject,
-                message=message,
-                recipient_list=self.env.email_recipient_list)
-
-    @task
-    def notify_pre_deployment(self, subject=None, message=None, force=0):
-        self.notify_deployment(action=PRE_DEPLOYMENT, subject=subject, message=message, force=force)
+        if force or self.env.email_enabled and self.genv.host_string == self.genv.hosts[0]: # First host only
+            subject = subject or '{} Deployment Started'.format(self.genv.ROLE.title())
+            message = message or 'Deployment to {} has started.'.format(self.genv.ROLE)
+            self.send_email(subject=subject, message=message, recipient_list=self.env.email_recipient_list)
+        else:
+            self.vprint('Skipping notify_pre_deployment.')
 
     @task
     def notify_post_deployment(self, subject=None, message=None, force=0):
-        self.notify_deployment(action=POST_DEPLOYMENT, subject=subject, message=message, force=force)
+        """
+        Send email notifying recipients of deploy completion.
+        """
+        force = int(force)
+
+        if force or self.env.email_enabled and self.genv.host_string == self.genv.hosts[-1]: # Last host only
+            subject = subject or '{} Deployment Started'.format(self.genv.ROLE.title())
+            message = message or 'Deployment to {} has started.'.format(self.genv.ROLE)
+            self.send_email(subject=subject, message=message, recipient_list=self.env.email_recipient_list)
+        else:
+            self.vprint('Skipping notify_post_deployment.')
 
     @task
     def notify_failed_deployment(self, subject=None, message=None, force=0):
-        self.notify_deployment(action=FAILED_DEPLOYMENT, subject=subject, message=message, force=force)
+        """
+        Send email notifying recipients of deploy failure, including traceback if applicable.
+        """
+        force = int(force)
+
+        if force or self.env.email_enabled:
+            subject = subject or '{} Deployment Failed'.format(self.genv.ROLE.title())
+            message = message or 'Deployment to {role} has failed.\n\n{tb}'.format(
+                role=self.genv.ROLE, tb=traceback.format_exc()
+            )
+            self.send_email(subject=subject, message=message, recipient_list=self.env.email_recipient_list)
+        else:
+            self.vprint('Skipping notify_failed_deployment.')
 
     @task
     def configure(self):
