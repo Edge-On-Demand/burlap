@@ -317,8 +317,9 @@ class DeploySatchel(ContainerSatchel):
         yes = int(yes)
         show_preview = not yes or int(show_preview)
         show_issues = int(show_issues)
-        self.lock()
+
         try:
+            self.lock() # Ensure that no one else can concurrently deploy to these hosts.
 
             if show_preview:
                 # If we want to confirm the deployment with the user, and we're at the first server,
