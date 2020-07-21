@@ -90,8 +90,8 @@ class DeploymentNotifierSatchel(Satchel):
         force = int(force)
 
         if force or self.env.email_enabled and self.genv.host_string == self.genv.hosts[-1]: # Last host only
-            subject = subject or '{} Deployment Started'.format(self.genv.ROLE.title())
-            message = message or 'Deployment to {} has started.'.format(self.genv.ROLE)
+            subject = subject or '{} Deployment Complete'.format(self.genv.ROLE.title())
+            message = message or 'Deployment to {} is complete.'.format(self.genv.ROLE)
             self.send_email(subject=subject, message=message, recipient_list=self.env.email_recipient_list)
         else:
             self.vprint('Skipping notify_post_deployment.')
