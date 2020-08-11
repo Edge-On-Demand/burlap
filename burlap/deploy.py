@@ -339,7 +339,7 @@ class DeploySatchel(ContainerSatchel):
             service.post_deploy()
             notifier.notify_post_deployment()
 
-        except Exception:
+        except:
             notifier.notify_failed_deployment()
             raise
 
