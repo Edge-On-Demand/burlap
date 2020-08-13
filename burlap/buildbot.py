@@ -45,12 +45,6 @@ class BuildBotSatchel(ServiceSatchel):
 
         self.env.perms = '777'
 
-        #DEPRECATED
-        # self.env.cron_path = '/etc/cron.d/buildbot_boot'
-        # self.env.cron_user = 'root'
-        # self.env.cron_group = 'root'
-        # self.env.cron_perms = '600'
-
         self.env.extra_deploy_paths = ['buildbot/worker/info/', 'buildbot/worker/buildbot.tac']
 
         self.env.delete_deploy_paths = []
@@ -230,15 +224,19 @@ class BuildBotSatchel(ServiceSatchel):
 
     @task
     def set_permissions(self):
+        """
+        Assign ownership of project and home directories to Buildbot user.
+        """
         r = self.local_renderer
         r.sudo('chown -R {bb_user}:{bb_group} {home_dir}')
         r.sudo('chown -R {bb_user}:{bb_group} {project_dir}')
-        #r.sudo('chown -R {bb_user}:{bb_group} {project_dir}/src/buildbot/master')
-        #r.sudo('chown -R {bb_user}:{bb_group} {project_dir}/src/buildbot/worker')
-        r.sudo('chmod -R {perms} {project_dir}')
+        r.sudo('chmod -R a+rw {project_dir}') # Allow access by other users (e.g. www-data?)
 
     @task
     def rsync_paths(self):
+        """
+        Transfer miscellaneous extra files to Buildbot host.
+        """
         r = self.local_renderer
         for from_path, to_path, to_user, to_group, to_perms in r.env.rsync_paths:
             assert os.path.isfile(from_path), 'File %s does not exist locally.' % from_path
@@ -275,14 +273,17 @@ class BuildBotSatchel(ServiceSatchel):
     def deploy_code(self):
         r = self.local_renderer
 
+        # Temporarily assign ownership of project directory to deploy user to facilitate rsync transfers.
+        # Will be reverted to Buildbot user later with set_permissions().
         r.sudo('chown -R {user}:{group} {project_dir}')
-        r.sudo('chmod -R {perms} {project_dir}')
 
+        # Remove unnecessary files.
         for delete_path in r.env.delete_deploy_paths:
             r.sudo('rm -Rf %s' % delete_path)
 
-        exclude_str = ' '.join(['--exclude=%s' % path for path in r.env.rsync_excludes])
+        exclude_str = ' '.join(['--exclude=%s' % path for path in r.env.rsync_excludes]) + ' '
 
+        # Update project files with rsync.
         r.local('rsync '
             '--recursive --verbose --perms --times --links '
             '--compress --copy-links '
@@ -296,6 +297,7 @@ class BuildBotSatchel(ServiceSatchel):
             '--rsh "ssh -t -o StrictHostKeyChecking=no -i {key_filename}" '
             'src {user}@{host_string}:{project_dir}')
 
+        # Sync extra deploy paths.
         for path in self.env.extra_deploy_paths:
             if path.endswith('/'):
                 # Directory.
@@ -307,7 +309,7 @@ class BuildBotSatchel(ServiceSatchel):
                 r.env.tmp_path = path
                 r.env.tmp_remote_path = os.path.split(path)[0]
 
-            r.pc('Fixing permissions...')
+            r.pc('Fixing permissions for {}...'.format(path))
             r.local('rsync '
                 '--recursive --verbose --times --omit-dir-times --links '
                 '--compress --copy-links '
@@ -316,7 +318,6 @@ class BuildBotSatchel(ServiceSatchel):
                 'src/{tmp_path} {user}@{host_string}:{project_dir}/src/{tmp_remote_path}')
 
         self.rsync_paths()
-
         self.set_permissions()
 
     @task
@@ -400,7 +401,7 @@ class BuildBotSatchel(ServiceSatchel):
             r.put(local_path=r.env.ssh_public_key, remote_path=r.env.public_remote_path, use_sudo=True)
             r.sudo('chown -R {bb_user}:{bb_group} {ssh_dir}')
             r.sudo('chmod -R 0770 {ssh_dir}')
-            r.sudo('chmod -R 0600 {ssh_dir}/*')
+            r.sudo('chmod -R 0600 {ssh_dir}/*') # SSH keys must use restrictive permissions.
         else:
             r.sudo('rm -F {private_remote_path}')
             r.sudo('rm -F {public_remote_path}')
