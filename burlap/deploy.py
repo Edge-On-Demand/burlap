@@ -339,8 +339,9 @@ class DeploySatchel(ContainerSatchel):
             service.post_deploy()
             notifier.notify_post_deployment()
 
-        except:
-            notifier.notify_failed_deployment()
+        except BaseException as exc:
+            if getattr(exc, 'code', 0): # Don't send failure notifications for SystemExit with return code 0.
+                notifier.notify_failed_deployment()
             raise
 
         finally:
