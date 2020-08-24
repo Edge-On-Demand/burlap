@@ -15,7 +15,7 @@ class MemcachedSatchel(ServiceSatchel):
         }
 
     def set_defaults(self):
-        super(MemcachedSatchel, self).set_defaults()
+        super().set_defaults()
         self.env.service_commands = {
             START:{
                 FEDORA: 'systemctl start memcached',

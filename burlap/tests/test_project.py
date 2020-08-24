@@ -19,7 +19,7 @@ CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 class ProjectTests(TestCase):
 
     def setUp(self):
-        super(ProjectTests, self).setUp()
+        super().setUp()
 
         set_verbose(True)
         # Ensure we're in burlap's root directory.

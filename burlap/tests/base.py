@@ -139,7 +139,7 @@ class TestCase(unittest.TestCase):
         # print('setUp: Purging deployments...')
         deploy_satchel.purge()
 
-        super(TestCase, self).setUp()
+        super().setUp()
 
     def tearDown(self):
 
@@ -157,4 +157,4 @@ class TestCase(unittest.TestCase):
         clear_state()
         set_state(self._burlap_state)
 
-        super(TestCase, self).tearDown()
+        super().tearDown()

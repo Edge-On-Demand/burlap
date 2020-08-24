@@ -325,7 +325,7 @@ class GitCheckerSatchel(Satchel):
 
     def record_manifest(self):
         self.check()
-        return super(GitCheckerSatchel, self).record_manifest()
+        return super().record_manifest()
 
     @task
     def configure(self):
@@ -377,7 +377,7 @@ class GitTrackerSatchel(Satchel):
         Called after a deployment to record any data necessary to detect changes
         for a future deployment.
         """
-        manifest = super(GitTrackerSatchel, self).record_manifest()
+        manifest = super().record_manifest()
         manifest[CURRENT_COMMIT] = self.get_current_commit()
         return manifest
 

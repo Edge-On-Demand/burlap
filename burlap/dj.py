@@ -39,7 +39,7 @@ class DjangoSettingsTracker(BaseTracker):
         names = names or []
         assert isinstance(names, (tuple, list, set))
         names = sorted(set(_.strip() for _ in names if _.strip()))
-        super(DjangoSettingsTracker, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.names = names
 
     @property
@@ -884,7 +884,7 @@ class DjangoSatchel(Satchel):
         return data
 
     def record_manifest(self):
-        manifest = super(DjangoSatchel, self).record_manifest()
+        manifest = super().record_manifest()
         manifest['latest_timestamp'] = self.get_media_timestamp()
         manifest['migrations'] = self.get_migration_fingerprint()
         return manifest

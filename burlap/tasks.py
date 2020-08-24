@@ -14,7 +14,7 @@ class WrappedCallableTask(_WrappedCallableTask):
 
     def __init__(self, *args, **kwargs):
         real_module = kwargs.pop('real_module', None)
-        super(WrappedCallableTask, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if real_module:
             self.__module__ = real_module
 

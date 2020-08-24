@@ -160,7 +160,7 @@ class SupervisorSatchel(ServiceSatchel):
         """
         Called after a deployment to record any data necessary to detect changes for a future deployment.
         """
-        data = super(SupervisorSatchel, self).record_manifest()
+        data = super().record_manifest()
 
         # Celery deploys itself through supervisor, so monitor its changes too in Apache site configs.
         for site_name, site_data in self.genv.sites.items():

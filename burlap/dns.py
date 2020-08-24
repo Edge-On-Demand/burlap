@@ -111,7 +111,7 @@ class DNSSatchel(Satchel):
 
     def record_manifest(self):
         r = self.local_renderer
-        manifest = super(DNSSatchel, self).record_manifest()
+        manifest = super().record_manifest()
         manifest['zone_files'] = {}
         for zone_data in r.env.zones:
             zone_file = zone_data['file']

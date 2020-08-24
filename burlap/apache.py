@@ -295,7 +295,7 @@ class ApacheSatchel(ServiceSatchel):
         Instantiates a new local renderer.
         Override this to do any additional initialization.
         """
-        r = super(ApacheSatchel, self).create_local_renderer()
+        r = super().create_local_renderer()
 
         # Dynamically set values based on target operating system.
         os_version = self.os_version
@@ -456,7 +456,7 @@ class ApacheSatchel(ServiceSatchel):
         Called after a deployment to record any data necessary to detect changes
         for a future deployment.
         """
-        manifest = super(ApacheSatchel, self).record_manifest()
+        manifest = super().record_manifest()
         manifest['available_sites'] = self.genv.available_sites
         manifest['available_sites_by_host'] = self.genv.available_sites_by_host
         manifest['media_timestamp'] = self.get_media_timestamp()

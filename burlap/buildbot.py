@@ -539,7 +539,7 @@ class BuildBotSatchel(ServiceSatchel):
             with settings(warn_only=True):
                 self.stop()
 
-        super(BuildBotSatchel, self).configure()
+        super().configure()
 
         if has_changes:
             self.restart()

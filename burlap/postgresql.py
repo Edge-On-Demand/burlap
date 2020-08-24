@@ -146,7 +146,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
         }
 
     def set_defaults(self):
-        super(PostgreSQLSatchel, self).set_defaults()
+        super().set_defaults()
 
         # Note, if you use gzip, you can't use parallel restore.
         #self.env.dump_command = 'time pg_dump -c -U {db_user} --no-password --blobs --format=c --schema=public --host={db_host} {db_name} > {dump_fn}'
