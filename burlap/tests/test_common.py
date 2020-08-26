@@ -43,7 +43,7 @@ class CommonTests(TestCase):
         return test
 
     def setUp(self):
-        super(CommonTests, self).setUp()
+        super().setUp()
 
         # Importing ourself register us in sys.modules, which burlap uses to track satchels.
         # This is necessary to instantiate this satchel when running this testcase separately.

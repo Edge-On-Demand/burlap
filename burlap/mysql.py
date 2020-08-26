@@ -29,7 +29,7 @@ class MySQLSatchel(DatabaseSatchel):
     name = 'mysql'
 
     def __init__(self, *args, **kwargs):
-        super(MySQLSatchel, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._conf_cache = {}
 
     @property
@@ -43,7 +43,7 @@ class MySQLSatchel(DatabaseSatchel):
         }
 
     def set_defaults(self):
-        super(MySQLSatchel, self).set_defaults()
+        super().set_defaults()
 
         # You want this to be large, and set in both the client and server.
         # Otherwise, MySQL may silently truncate database dumps, leading to much

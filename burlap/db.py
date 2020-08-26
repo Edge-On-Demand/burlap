@@ -57,7 +57,7 @@ class DatabaseSatchel(ServiceSatchel):
         self.env.default_db_name = 'default'
 
     def clear_caches(self):
-        super(DatabaseSatchel, self).clear_caches()
+        super().clear_caches()
         self._database_renderers.clear()
 
     def get_database_defaults(self):
@@ -189,7 +189,7 @@ class DatabaseSatchel(ServiceSatchel):
 
     @task
     def configure(self, *args, **kwargs):
-        super(DatabaseSatchel, self).configure(*args, **kwargs)
+        super().configure(*args, **kwargs)
 
     @task
     def get_free_space(self):

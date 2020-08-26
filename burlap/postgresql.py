@@ -142,10 +142,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
             (UBUNTU, '14.04'): ['postgresql-9.3'],
             (UBUNTU, '16.04'): ['postgresql-10'],
             (UBUNTU, '18.04'): ['postgresql-11'],
+            (UBUNTU, '20.04'): ['postgresql-12'],
         }
 
     def set_defaults(self):
-        super(PostgreSQLSatchel, self).set_defaults()
+        super().set_defaults()
 
         # Note, if you use gzip, you can't use parallel restore.
         #self.env.dump_command = 'time pg_dump -c -U {db_user} --no-password --blobs --format=c --schema=public --host={db_host} {db_name} > {dump_fn}'
@@ -219,6 +220,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 if ver.release == '18.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main'],
+                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                    }
+                if ver.release == '20.04':
+                    return {
+                        APT: ['deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
         raise NotImplementedError
@@ -702,6 +708,11 @@ class PostgreSQLClientSatchel(Satchel):
                 if ver.release == '18.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main'],
+                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                    }
+                if ver.release == '20.04':
+                    return {
+                        APT: ['deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
         raise NotImplementedError

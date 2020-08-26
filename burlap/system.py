@@ -35,7 +35,7 @@ class UnsupportedFamily(Exception):
         self.distrib = distrib_id()
         self.family = distrib_family()
         msg = "Unsupported family %s (%s). Supported families: %s" % (self.family, self.distrib, ', '.join(supported))
-        super(UnsupportedFamily, self).__init__(msg)
+        super().__init__(msg)
 
 
 def distrib_id():

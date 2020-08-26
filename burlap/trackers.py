@@ -66,7 +66,7 @@ class FilesystemTracker(BaseTracker):
         assert os.path.isdir(base_dir), 'Directory %s does not exist.' % base_dir
         extensions = extensions.strip()
         assert extensions, 'No extensions specified.'
-        super(FilesystemTracker, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.base_dir = base_dir
         self.extensions = extensions
 
@@ -102,7 +102,7 @@ class SettingsTracker(BaseTracker):
         names = names or []
         assert isinstance(names, (tuple, list, set))
         names = sorted(set(_.strip() for _ in names if _.strip()))
-        super(SettingsTracker, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.satchel = satchel
         self.names = names
 
@@ -138,7 +138,7 @@ class ORTracker(BaseTracker):
     def __init__(self, *trackers, **kwargs):
         assert isinstance(trackers, (tuple, list))
         assert trackers, 'No trackers specified.'
-        super(ORTracker, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.trackers = list(trackers)
 
     def __repr__(self):

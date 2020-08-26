@@ -18,7 +18,7 @@ class MongoDBSatchel(DatabaseSatchel):
     name = 'mongodb'
 
     def set_defaults(self):
-        super(MongoDBSatchel, self).set_defaults()
+        super().set_defaults()
 
         self.env.dump_command = 'mongodump -h {db_host}:{db_port} -v --username={db_user} --password={db_password} --gzip --archive={dump_fn}'
         self.env.dump_fn_template = '{dump_dest_dir}/db_mongodb_{SITE}_{ROLE}_{db_name}_$(date +%Y%m%d).archive'
@@ -54,7 +54,7 @@ class MongoDBSatchel(DatabaseSatchel):
 
     @task
     def configure(self, *args, **kwargs):
-        super(MongoDBSatchel, self).configure(*args, **kwargs)
+        super().configure(*args, **kwargs)
         self.install_watchdog()
 
     @property

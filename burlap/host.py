@@ -303,7 +303,7 @@ class HostSatchel(Satchel):
 
     def record_manifest(self, *args, **kargs):
         self.initrole()
-        return super(HostSatchel, self).record_manifest(*args, **kargs)
+        return super().record_manifest(*args, **kargs)
 
     def configure(self):
         # Just a stub. All the magic happens in deploy_pre_run().
