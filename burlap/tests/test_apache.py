@@ -4,8 +4,6 @@ Run test with:
     tox -c tox-full.ini -e py37-ubuntu_18_04_64 -- -s burlap/tests/test_apache.py::ApacheTests::test_diff
 
 """
-from __future__ import print_function
-
 import os
 import shutil
 import getpass

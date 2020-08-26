@@ -10,8 +10,6 @@ Environment variables:
     BURLAP_TEST_REUSE_VM
 
 """
-from __future__ import print_function
-
 from pipes import quote
 import logging
 import os

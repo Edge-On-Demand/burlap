@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from burlap.common import Satchel
 from burlap.tests.base import TestCase
 

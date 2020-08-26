@@ -1,7 +1,5 @@
-from __future__ import print_function
-
-import sys
 import socket
+import sys
 from io import BytesIO
 from pprint import pprint
 from functools import partial
@@ -340,7 +338,7 @@ class DeploySatchel(ContainerSatchel):
             notifier.notify_post_deployment()
 
         except BaseException as exc:
-            if getattr(exc, 'code', 0): # Don't send failure notifications for SystemExit with return code 0.
+            if getattr(exc, 'code', 1): # Don't send failure notifications for SystemExit with return code 0.
                 notifier.notify_failed_deployment()
             raise
 

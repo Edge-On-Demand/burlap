@@ -4,8 +4,6 @@ Run test with:
     tox -c tox-full.ini -e py37-ubuntu_18_04_64 -- -s burlap/tests/functional_tests/test_buildbot.py::BuildbotTests::test_cron_check
 
 """
-from __future__ import print_function
-
 import os
 import tempfile
 

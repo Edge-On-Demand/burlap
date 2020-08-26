@@ -6,8 +6,6 @@ This module provides tools to manage CentOS/RHEL/SL/Fedora packages
 and repositories.
 
 """
-from __future__ import print_function
-
 from fabric.api import hide, run, settings
 
 import six

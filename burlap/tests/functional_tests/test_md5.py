@@ -1,5 +1,3 @@
-from __future__ import with_statement
-
 import hashlib
 
 from fabric.api import hide, run, settings

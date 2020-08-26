@@ -6,8 +6,6 @@ Run like:
     tox -c tox-full.ini -e py27-ubuntu_16_04_64 -- -s burlap/tests/test_common.py::CommonTests::test_satchel_ordering
 
 """
-from __future__ import print_function
-
 import os
 import sys
 import tempfile

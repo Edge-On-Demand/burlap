@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import os
 #import re
 import shutil
@@ -159,8 +157,6 @@ class DjTests(TestCase):
 
             ## Populate model.
             #open('/tmp/test_dj_migrate/src/myapp/models.py', 'w').write('''
-#from __future__ import unicode_literals
-
 #from django.db import models
 
 #class MyModel(models.Model):

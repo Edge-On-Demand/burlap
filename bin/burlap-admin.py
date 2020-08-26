@@ -6,8 +6,6 @@ e.g.
 
     burlap skel --name=myproject
 """
-from __future__ import print_function
-
 import argparse
 import os
 import sys

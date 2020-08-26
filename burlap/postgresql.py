@@ -5,8 +5,6 @@ PostgreSQL users and databases
 This module provides tools for creating PostgreSQL users and databases.
 
 """
-from __future__ import print_function
-
 import os
 
 import six

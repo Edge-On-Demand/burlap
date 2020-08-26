@@ -9,8 +9,6 @@ should normally not use them directly but rather use the high-level wrapper
 .. _Git: http://git-scm.com/
 
 """
-from __future__ import print_function
-
 import os
 
 from fabric.api import run, sudo, hide

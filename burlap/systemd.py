@@ -7,8 +7,6 @@ This module provides low-level tools for managing `systemd`_ services.
 .. _systemd: http://www.freedesktop.org/wiki/Software/systemd
 
 """
-from __future__ import print_function
-
 from fabric.api import hide, settings
 
 from burlap.utils import run_as_root
