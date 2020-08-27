@@ -3,7 +3,6 @@ Wrapper around the Motion service.
 
 http://www.lavrsen.dk/foswiki/bin/view/Motion/WebHome
 """
-from __future__ import print_function
 import re
 
 import feedparser

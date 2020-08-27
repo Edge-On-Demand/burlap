@@ -1,8 +1,6 @@
 """
 Inspects and manipulates settings files.
 """
-from __future__ import print_function
-
 from pprint import pprint
 import types
 

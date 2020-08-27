@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 #from fabric.contrib.files import exists
 
 from burlap.common import set_verbose

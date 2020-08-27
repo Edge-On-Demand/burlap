@@ -3,8 +3,6 @@ Wrapper around the Motion service.
 
 http://www.lavrsen.dk/foswiki/bin/view/Motion/WebHome
 """
-from __future__ import print_function
-
 from burlap import ServiceSatchel
 from burlap.constants import *
 from burlap.decorators import task

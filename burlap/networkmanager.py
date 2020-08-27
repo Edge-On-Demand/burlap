@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from fabric.api import settings
 
 from burlap import ServiceSatchel

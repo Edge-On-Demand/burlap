@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from fabric.contrib.files import exists
 from fabric.context_managers import cd
 from fabric.api import run

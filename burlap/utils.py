@@ -2,8 +2,6 @@
 Utilities
 =========
 """
-from __future__ import print_function
-
 from pipes import quote
 import os
 import posixpath

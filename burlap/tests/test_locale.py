@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from burlap.locale import LocalesSatchel
 from burlap.tests.base import TestCase
 

@@ -5,8 +5,6 @@ Note, this is a special module, in that all tasks defined here are auto-imported
 into the top-level namespace. That means you access them by calling them directly,
 not through "debug."
 """
-from __future__ import print_function
-
 import re
 from pprint import pprint
 

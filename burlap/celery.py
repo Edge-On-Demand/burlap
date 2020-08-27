@@ -5,8 +5,6 @@ Note, we manage Celery through Supervisor, since it's extremely difficult to
 run several instances of Celery for multiple Apache sites.
 
 """
-from __future__ import print_function
-
 from pprint import pprint
 
 from burlap.constants import *

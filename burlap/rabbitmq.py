@@ -5,8 +5,6 @@ RabbitMQ
 https://www.rabbitmq.com/
 
 """
-from __future__ import print_function
-
 import sys
 
 from fabric.api import settings

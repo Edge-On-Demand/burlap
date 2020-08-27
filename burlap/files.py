@@ -2,8 +2,6 @@
 Files and directories
 =====================
 """
-from __future__ import print_function, with_statement
-
 from pipes import quote
 import os
 from tempfile import mkstemp

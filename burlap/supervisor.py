@@ -8,8 +8,6 @@ processes using `supervisord`_.
 .. _supervisord: http://supervisord.org/
 
 """
-from __future__ import print_function
-
 import os
 
 from burlap.constants import *

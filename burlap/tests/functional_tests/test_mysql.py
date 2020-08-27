@@ -4,8 +4,6 @@ Run with:
     tox -c tox-full.ini -e py37-ubuntu_18_04_64 -- -s burlap/tests/functional_tests/test_buildbot.py::MySQLTests::test_set_root_password_mysqld_safe
 
 """
-from __future__ import print_function
-
 from burlap.constants import *
 from burlap.mysql import MySQLSatchel, MYSQLD_SAFE
 from burlap.tests.functional_tests.base import TestCase

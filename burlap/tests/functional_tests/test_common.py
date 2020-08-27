@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from burlap.files import file # pylint: disable=redefined-builtin
 from burlap.tests.functional_tests.base import TestCase
 from burlap.common import Satchel

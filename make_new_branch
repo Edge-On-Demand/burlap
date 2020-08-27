@@ -7,7 +7,6 @@ Usage:
     ./make_new_branch <issue#>
 
 """
-from __future__ import print_function
 import os
 import sys
 import re

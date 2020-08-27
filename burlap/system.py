@@ -2,8 +2,6 @@
 System settings
 ===============
 """
-from __future__ import print_function
-
 from fabric.api import hide, run, settings
 
 from burlap.files import file # pylint: disable=redefined-builtin

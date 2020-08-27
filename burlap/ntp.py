@@ -6,8 +6,6 @@ if a system uses this component.
 
 It should be otherwise maintenance-free and have required settings to configure.
 """
-from __future__ import print_function
-
 from burlap import ServiceSatchel
 from burlap.constants import *
 from burlap.decorators import task
