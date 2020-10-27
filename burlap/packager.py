@@ -77,7 +77,7 @@ class PackagerSatchel(Satchel):
             r.put(local_path=tmp_fn, remote_path=tmp_fn)
             apt_req_fqfn = self.genv.put_remote_path
         r.sudo('DEBIAN_FRONTEND=noninteractive apt-get -yq update --fix-missing')
-        r.sudo('DEBIAN_FRONTEND=noninteractive apt-get -yq install `cat "%s" | tr "\\n" " "`' % apt_req_fqfn)
+        r.sudo('DEBIAN_FRONTEND=noninteractive apt-get -yq install `cat "%s" | sed "/^#/ d" | tr "\\n" " "`' % apt_req_fqfn)
 
     @task
     def install_yum(self, fn=None, package_name=None, update=0, list_only=0):

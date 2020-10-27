@@ -318,18 +318,23 @@ class ApacheSatchel(ServiceSatchel):
         from burlap.common import iter_sites
         verbose = self.verbose
 
+        init_dir = False
+        priors = set()
         for _site, site_data in iter_sites(site=site, setter=self.set_site_specifics):
-
             site_secure = _site
             self.set_site_specifics(site_secure)
-
-            self.sudo('mkdir -p %(apache_ssl_dir)s' % self.genv)
-
             if self.genv.apache_ssl:
                 for cert_type, local_cert_file, remote_cert_file in self.iter_certificates():
+                    datum = (cert_type, local_cert_file, remote_cert_file)
+                    if datum in priors:
+                        continue
+                    priors.add(datum)
                     if verbose:
                         print('=' * 80)
                         print('Installing certificate %s->%s...' % (local_cert_file, remote_cert_file,))
+                    if not init_dir:
+                        init_dir = True
+                        self.sudo('mkdir -p %(apache_ssl_dir)s' % self.genv)
                     self.put(
                         local_path=local_cert_file,
                         remote_path=remote_cert_file,
@@ -580,6 +585,11 @@ class ApacheSatchel(ServiceSatchel):
 
                 r.env.apache_site = _site
                 r.env.server_name = r.format(r.env.domain_template)
+
+                # Expand user in path fields.
+                for field in ('docroot', 'wsgi_dir', 'wsgi_module_path', 'wsgi_python_home', 'wsgi_scriptalias'):
+                    if (getattr(r.env, field) or '').startswith('~'):
+                        setattr(r.env, field, os.path.expanduser(getattr(r.env, field)))
 
                 # Write WSGI template
                 if r.env.wsgi_enabled:
