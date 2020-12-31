@@ -1,6 +1,5 @@
+import os
 from pprint import pprint
-
-import six
 
 from burlap.common import Satchel
 from burlap.constants import *
@@ -132,25 +131,30 @@ class PIPSatchel(Satchel):
         Returns all requirements files combined into one string.
         """
 
-        requirements = requirements or self.env.requirements
-
         def iter_lines(fn):
             with open(fn, 'r') as fin:
                 for line in fin.readlines():
                     line = line.strip()
                     if not line or line.startswith('#'):
                         continue
-                    yield line
+                    if line.startswith('-r'):
+                        recursive_requirements = line[3:]
+                        self.vprint('Recursively including requirements from {}.'.format(recursive_requirements))
+                        recursive_requirements_path = os.path.join(
+                            self.genv.ROLES_DIR, self.genv.ROLE, recursive_requirements
+                        )
+                        yield from iter_lines(recursive_requirements_path)
+                    else:
+                        yield line
+
+        requirements = requirements or self.env.requirements
+        if isinstance(requirements, str):
+            requirements = [requirements]
 
         content = []
-        if isinstance(requirements, (tuple, list)):
-            for f in requirements:
-                f = self.find_template(f)
-                content.extend(list(iter_lines(f)))
-        else:
-            assert isinstance(requirements, six.string_types)
-            f = self.find_template(requirements)
-            content.extend(list(iter_lines(f)))
+        for requirement in requirements:
+            requirements_path = self.find_template(requirement)
+            content.extend(list(iter_lines(requirements_path)))
 
         return '\n'.join(content)
 
