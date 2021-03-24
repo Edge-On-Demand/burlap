@@ -123,6 +123,10 @@ class CelerySatchel(ServiceSatchel):
 
         self.vprint('create_supervisor_services:', site)
 
+        # Since this may be called for multiple sites, ensure we don't pollute our renderer with values from
+        # each site, and instead get a fresh renderer.
+        self.clear_local_renderer()
+
         self.set_site_specifics(site=site)
 
         r = self.local_renderer
