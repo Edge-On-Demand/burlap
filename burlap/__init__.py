@@ -298,8 +298,8 @@ def check_version():
         # The only reason this would fail is if it's being run during the initial setup.py install, when dependencies haven't all been installed yet.
         return
     try:
-        response = urlopen("https://pypi.org/pypi/burlap/json")
-        data = json.loads(response.read().decode())
+        with urlopen("https://pypi.org/pypi/burlap/json") as response:
+            data = json.loads(response.read().decode())
         remote_release = sorted(tuple(map(int, _.split('.'))) for _ in data['releases'].keys())[-1]
         remote_release_str = '.'.join(map(str, remote_release))
         local_release = VERSION

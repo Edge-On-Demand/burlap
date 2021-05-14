@@ -84,7 +84,7 @@ def get_file_hash(fin, block_size=2**20):
     Designed to process an arbitrary binary file.
     """
     if isinstance(fin, six.string_types):
-        fin = open(fin)
+        fin = open(fin) # pylint: disable=consider-using-with
     h = hashlib.sha512()
     while True:
         data = fin.read(block_size)

@@ -374,9 +374,8 @@ class PackagerSatchel(Satchel):
                         print('content:', content)
                     break
                 fd, fn = tempfile.mkstemp()
-                fout = open(fn, 'w')
-                fout.write(content)
-                fout.close()
+                with open(fn, 'w') as fout:
+                    fout.write(content)
                 self.install_custom(fn=fn)
             else:
                 raise NotImplementedError

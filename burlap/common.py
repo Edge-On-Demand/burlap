@@ -1529,12 +1529,12 @@ class Satchel:
                 fout.close()
         else:
             if fn:
-                fout = open(fn, 'w')
+                with open(fn, 'w') as fout:
+                    fout.write(content)
             else:
                 fd, fn = tempfile.mkstemp()
-                fout = os.fdopen(fd, 'wt')
-            fout.write(content)
-            fout.close()
+                with os.fdopen(fd, 'wt') as fout:
+                    fout.write(content)
         assert fn
 
         if style == 'cat':
@@ -2193,9 +2193,8 @@ def write_temp_file_or_dryrun(content, *args, **kwargs):
             print(cmd)
     else:
         fd, tmp_fn = tempfile.mkstemp()
-        fout = open(tmp_fn, 'w')
-        fout.write(content)
-        fout.close()
+        with open(tmp_fn, 'w') as fout:
+            fout.write(content)
     return tmp_fn
 
 
@@ -2695,11 +2694,11 @@ def write_to_file(content, fn=None, **kwargs):
             print(cmd)
     else:
         if fn:
-            fout = open(fn, 'w')
+            with open(fn, 'w') as fout:
+                fout.write(content)
         else:
-            fout = os.fdopen(fd, 'wt')
-        fout.write(content)
-        fout.close()
+            with os.fdopen(fd, 'wt') as fout:
+                fout.write(content)
     return fn
 
 def set_site(site):

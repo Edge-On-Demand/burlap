@@ -424,15 +424,12 @@ class FileSatchel(ContainerSatchel):
             if verify_remote:
                 # Avoid reading the whole file into memory at once
                 digest = hashlib.md5()
-                f = open(source, 'rb')
-                try:
+                with open(source, 'rb') as f:
                     while True:
                         d = f.read(BLOCKSIZE)
                         if not d:
                             break
                         digest.update(d)
-                finally:
-                    f.close()
             else:
                 digest = None
 
