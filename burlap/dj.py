@@ -700,7 +700,7 @@ class DjangoSatchel(Satchel):
     @task
     def migrate(
         self, app='', migration='', site=None, fake=0, ignore_errors=None, database=None, migrate_apps='',
-        delete_ghosts=1, drop_connections=1
+        drop_connections=1
     ):
         # pylint: disable=anomalous-backslash-in-string
         """
@@ -714,8 +714,7 @@ class DjangoSatchel(Satchel):
             ignore_errors: If truthy, print and ignore migration failures (defaults to r.env.ignore_migration_errors)
             database: Database on which to migrate apps
             migrate_apps: Apps to migrate (defaults to all)
-            delete_ghosts: Delete ghost migrations (South-only)
-            drop_connections: Drop all db connections before migration, to prevent locks (Postgres-only)
+            drop_connections: Terminate all db connections before migration, to prevent locks (Postgres-only)
 
         To pass a comma-delimited list in a fab command, escape the comma with a backslash.
 
@@ -728,7 +727,6 @@ class DjangoSatchel(Satchel):
         r = self.local_renderer
 
         ignore_errors = int(r.env.ignore_migration_errors if ignore_errors is None else ignore_errors)
-        delete_ghosts = int(delete_ghosts and self.version_tuple < (1, 9, 0))
         drop_connections = int(drop_connections)
 
         post_south = self.version_tuple >= (1, 7, 0)
@@ -746,7 +744,6 @@ class DjangoSatchel(Satchel):
         r.env.migrate_fake_str = '--fake' if int(fake) else ''
         r.env.migrate_database = '--database=%s' % database if database else ''
         r.env.migrate_merge = '--merge' if not post_south else ''
-        r.env.delete_ghosts = '--delete-ghost-migrations' if delete_ghosts and not post_south else ''
         self.vprint('project_dir0:', r.env.project_dir, r.genv.get('dj_project_dir'), r.genv.get('project_dir'))
         self.vprint('migrate_apps:', migrate_apps)
 
@@ -779,13 +776,14 @@ class DjangoSatchel(Satchel):
                 self.vprint('project_dir1:', r.env.project_dir, r.genv.get('dj_project_dir'), r.genv.get('project_dir'))
                 r.env.SITE = _site
                 with self.settings(warn_only=ignore_errors):
+                    # Terminate database connections that may block or interfere with migrations.
                     if drop_connections and r.env.db_engine.split('.')[-1] in {POSTGRESQL, POSTGIS}:
-                        # Drop database connections that may lock or interfere with migrations.
                         self.get_satchel('postgresql').drop_connections()
                     r.run_or_local(
                         'export SITE={SITE}; export ROLE={ROLE}; {migrate_pre_command} cd {project_dir}; '
                         '{manage_cmd} migrate --noinput {migrate_merge} --traceback '
-                        '{migrate_database} {delete_ghosts} {migrate_app} {migrate_migration} {migrate_fake_str}')
+                        '{migrate_database} {migrate_app} {migrate_migration} {migrate_fake_str}'
+                    )
 
     @task
     def truncate(self, app):

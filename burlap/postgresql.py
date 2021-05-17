@@ -325,7 +325,9 @@ class PostgreSQLSatchel(DatabaseSatchel):
         if r.env.db_password:
             self.write_pgpass(name=name, root=use_root)
 
-        ret = r.run('psql --username={db_user} --host={db_host} -l | grep {db_name} | wc -l', ignore_errors=True)
+        ret = r.run(
+            'psql --username={db_user} --host={db_host} -l | grep -v test_ | grep {db_name} | wc -l', ignore_errors=True
+        )
         if ret is not None:
             if 'password authentication failed' in ret:
                 ret = False
@@ -339,7 +341,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
     @task
     def execute(
         self, sql, name='default', site=None, as_db_root_user=False, ignore_errors=False, no_db=False, no_pager=False,
-        **kwargs
+        timeout=None, **kwargs
     ):
         """
         Run SQL command with psql.
@@ -352,6 +354,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             ignore_errors (int/bool): If truthy, wrap task in settings(warn_only=True)
             no_db (int/bool): If truthy, omit --dbname argument (as when creating a database)
             no_pager (int/bool): If truthy, disable psql pager, to prevent interactive less-style prompt.
+            timeout (int/None): If not None, terminate command after this many seconds.
         """
         r = self.database_renderer(name=name, site=site)
 
@@ -366,17 +369,17 @@ class PostgreSQLSatchel(DatabaseSatchel):
             # Run locally as db root user with sudo -U, relying on pg_hba.conf or other Postgres auth
             ret = r.sudo(
                 'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
-                user=r.env.postgres_user, ignore_errors=ignore_errors)
+                user=r.env.postgres_user, ignore_errors=ignore_errors, timeout=timeout)
         elif as_db_root_user:
             # Run on remote database as db root user, relying on .pgpass or other Postgres auth
             ret = r.run(
                 'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
-                ignore_errors=ignore_errors)
+                ignore_errors=ignore_errors, timeout=timeout)
         else:
             # Run as normal db user, relying on .pgpass or other Postgres auth
             ret = r.run(
                 'psql --user={db_user} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
-                ignore_errors=ignore_errors)
+                ignore_errors=ignore_errors, timeout=timeout)
 
         return ret
 
@@ -432,6 +435,8 @@ class PostgreSQLSatchel(DatabaseSatchel):
         Drop non-root connections to the target site database.
 
         Useful for quickly killing deadlocks, or preventing interference with a db snapshot load.
+        Uses pg_terminate_backend() to send SIGTERM to all running non-shell (psql) query processes.
+        Times out after 10 seconds, since terminating connections is expected to be a very fast operation.
 
         Args:
             name (str): db name
@@ -456,7 +461,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
         self.execute(
             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' "
             "AND {usename_condition} AND application_name != 'psql';",
-            name=name, site=site, as_db_root_user=True, ignore_errors=True)
+            name=name, site=site, as_db_root_user=True, ignore_errors=True, timeout=10)
 
     @task
     #@runs_once Interferes with global methods that want to load multiple databases.
