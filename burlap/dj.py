@@ -12,6 +12,7 @@ from functools import cmp_to_key
 from pprint import pprint
 
 import six
+from fabric.exceptions import CommandTimeout
 from six import StringIO
 
 from burlap import Satchel
@@ -776,9 +777,13 @@ class DjangoSatchel(Satchel):
                 self.vprint('project_dir1:', r.env.project_dir, r.genv.get('dj_project_dir'), r.genv.get('project_dir'))
                 r.env.SITE = _site
                 with self.settings(warn_only=ignore_errors):
-                    # Terminate database connections that may block or interfere with migrations.
                     if drop_connections and r.env.db_engine.split('.')[-1] in {POSTGRESQL, POSTGIS}:
-                        self.get_satchel('postgresql').drop_connections()
+                        # Terminate database connections that may block or interfere with migrations.
+                        try:
+                            self.get_satchel('postgresql').drop_connections()
+                        except CommandTimeout:
+                            # Try again, since the first attempt may fail.
+                            self.get_satchel('postgresql').drop_connections()
                     r.run_or_local(
                         'export SITE={SITE}; export ROLE={ROLE}; {migrate_pre_command} cd {project_dir}; '
                         '{manage_cmd} migrate --noinput {migrate_merge} --traceback '
