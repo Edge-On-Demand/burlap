@@ -780,10 +780,10 @@ class DjangoSatchel(Satchel):
                     if drop_connections and r.env.db_engine.split('.')[-1] in {POSTGRESQL, POSTGIS}:
                         # Terminate database connections that may block or interfere with migrations.
                         try:
-                            self.get_satchel('postgresql').drop_connections()
+                            self.get_satchel('postgresql').drop_connections(**{'name': database} if database else {})
                         except CommandTimeout:
                             # Try again, since the first attempt may fail.
-                            self.get_satchel('postgresql').drop_connections()
+                            self.get_satchel('postgresql').drop_connections(**{'name': database} if database else {})
                     r.run_or_local(
                         'export SITE={SITE}; export ROLE={ROLE}; {migrate_pre_command} cd {project_dir}; '
                         '{manage_cmd} migrate --noinput {migrate_merge} --traceback '
