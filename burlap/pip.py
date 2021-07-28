@@ -1,7 +1,7 @@
 import os
 from pprint import pprint
 
-from burlap.common import Satchel
+from burlap.common import Satchel, is_local
 from burlap.constants import *
 from burlap.decorators import task
 
@@ -187,16 +187,21 @@ class PIPSatchel(Satchel):
         r.put(local_path=tmp_fn, remote_path=r.env.pip_remote_requirements_fn)
 
         # Ensure we're always using the latest pip.
-        r.run_or_local('{virtualenv_dir}/bin/pip {quiet_flag} install -U pip')
+        if is_local():
+            r.local('{virtualenv_dir}/bin/pip {quiet_flag} install -U pip')
+        else:
+            r.sudo('{virtualenv_dir}/bin/pip {quiet_flag} install -U pip', user=r.env.user)
 
         # Install requirements from file.
-        r.run_or_local("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}")
+        if is_local():
+            r.local("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}")
+        else:
+            r.sudo("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}", user=r.env.user)
 
     @task
     def record_manifest(self):
         """
-        Called after a deployment to record any data necessary to detect changes
-        for a future deployment.
+        Called after a deployment to record any data necessary to detect changes for a future deployment.
         """
         manifest = super().record_manifest()
         manifest['all-requirements'] = self.get_combined_requirements()

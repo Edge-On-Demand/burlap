@@ -51,7 +51,6 @@ RELOAD = 'reload'
 RESTART = 'restart'
 ENABLE = 'enable'
 DISABLE = 'disable'
-STATUS = 'status'
 SERVICE_COMMANDS = (
     START,
     STOP,
@@ -59,7 +58,6 @@ SERVICE_COMMANDS = (
     RESTART,
     ENABLE,
     DISABLE,
-    STATUS,
 )
 
 DJANGO = 'DJANGO'
@@ -79,8 +77,6 @@ STORAGES = (
     STORAGE_LOCAL,
     STORAGE_REMOTE,
 )
-
-LOCALHOSTS = ('localhost', '127.0.0.1')
 
 LOCAL_VERBOSE = 1
 GLOBAL_VERBOSE = 2

@@ -12,13 +12,14 @@ class PipTests(TestCase):
 
     def test_pip_install(self):
         pip_satchel = get_satchel('pip')
-        try:
-            # Initialize tmp directory.
-            d = '/tmp/test_pip_install'
-            if os.path.isdir(d):
-                shutil.rmtree(d)
-            os.makedirs(d)
 
+        # Initialize tmp directory.
+        d = '/tmp/test_pip_install'
+        if os.path.isdir(d):
+            shutil.rmtree(d)
+        os.makedirs(d)
+
+        try:
             # Install pip requirements.
             with set_cwd(d):
 
@@ -27,7 +28,7 @@ class PipTests(TestCase):
                 with open('roles/all/pip-requirements.txt', 'w') as fout:
                     print('PyYAML\n', file=fout)
 
-                # Install without the quiet flag
+                # Install without the quiet flag.
                 pip_satchel.verbose = 0
                 pip_satchel.env.virtualenv_dir = '%s/.env' % d
                 pip_satchel.configure()
@@ -35,19 +36,19 @@ class PipTests(TestCase):
                 self.assertTrue(os.path.isdir(pip_satchel.env.virtualenv_dir))
                 ret = getoutput('%s/bin/pip freeze | grep -i yaml' % pip_satchel.env.virtualenv_dir)
                 print('pip freeze:\n', ret)
-                self.assertTrue('PyYAML' in ret)
+                self.assertIn('PyYAML', ret)
 
                 # Delete the virtualenv.
                 shutil.rmtree(os.path.join(d, '.env'))
 
-                # Install with the quiet flag
+                # Install with the quiet flag.
                 pip_satchel.verbose = GLOBAL_VERBOSE
                 pip_satchel.configure()
 
                 self.assertTrue(os.path.isdir('.env'))
                 ret = getoutput('.env/bin/pip freeze | grep -i yaml')
                 print('pip freeze:\n', ret)
-                self.assertTrue('PyYAML' in ret)
+                self.assertIn('PyYAML', ret)
 
         finally:
             shutil.rmtree(d)
