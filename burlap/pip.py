@@ -124,7 +124,10 @@ class PIPSatchel(Satchel):
         if not self.virtualenv_exists():
             print('Creating new virtual environment...')
             print('shell_env:', self.genv.shell_env)
-            r.run('python{python_version} -m venv {virtualenv_dir}')
+            if is_local():
+                r.local('python{python_version} -m venv {virtualenv_dir}')
+            else:
+                r.sudo('python{python_version} -m venv {virtualenv_dir}', user=r.env.user)
 
     def get_combined_requirements(self, requirements=None):
         """
