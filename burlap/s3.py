@@ -3,10 +3,7 @@ import sys
 import re
 import json
 
-from fabric.api import (
-    settings,
-    runs_once,
-)
+from fabric.api import runs_once
 
 try:
     import boto
@@ -125,12 +122,12 @@ class S3Satchel(Satchel):
             target_dist = None
             for dist in rs:
                 print('Distribution:', dist.domain_name, dir(dist), dist.__dict__)
-                bucket_name = dist.origin.dns_name.replace('.s3.amazonaws.com', '')
+                bucket_name = dist.origin.dns_name.split('.')[0]
                 if bucket_name == _settings.AWS_STATIC_BUCKET_NAME:
                     target_dist = dist
                     break
             if not target_dist:
-                raise Exception(('Target distribution %s could not be found in the AWS account.') % (settings.AWS_STATIC_BUCKET_NAME,))
+                raise Exception(('Target distribution %s could not be found in the AWS account.') % (_settings.AWS_STATIC_BUCKET_NAME,))
             print('Using distribution %s associated with origin %s.' % (target_dist.id, _settings.AWS_STATIC_BUCKET_NAME))
             if self.dryrun:
                 print('aws cloudfront create-invalidation --distribution-id=%s --paths=%s' % (target_dist.id, paths))
