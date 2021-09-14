@@ -197,9 +197,9 @@ class PIPSatchel(Satchel):
 
         # Install requirements from file.
         if is_local():
-            r.local("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}")
+            r.local("{virtualenv_dir}/bin/pip {quiet_flag} install --exists-action w -r {pip_remote_requirements_fn}")
         else:
-            r.sudo("{virtualenv_dir}/bin/pip {quiet_flag} install -r {pip_remote_requirements_fn}", user=r.env.user)
+            r.sudo("{virtualenv_dir}/bin/pip {quiet_flag} install --exists-action w -r {pip_remote_requirements_fn}", user=r.env.user)
 
     @task
     def record_manifest(self):
