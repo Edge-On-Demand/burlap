@@ -67,13 +67,23 @@ except (ImportError, NameError) as e:
     print('Unable to initialize debug: %s' % e, file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 91)
+VERSION = (0, 9, 92)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
 no_load = int(os.environ.get('BURLAP_NO_LOAD', 0))
 
-# Silence INFO-level Paramiko noise
+# Show virtually all logging messages by default.
+default_loglevel = logging.getLevelName(os.environ.get('LOGLEVEL', 'INFO'))
+logger = logging.getLogger()
+logger.setLevel(default_loglevel)
+handler = logging.StreamHandler()
+handler.setLevel(default_loglevel)
+formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s", "%Y-%m-%d %H:%M:%S")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# Silence INFO-level Paramiko noise.
 logging.getLogger("paramiko").setLevel(logging.WARNING)
 
 def _get_environ_handler(name, d):

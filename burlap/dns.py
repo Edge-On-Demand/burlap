@@ -1,4 +1,5 @@
 import time
+import logging
 from pprint import pprint
 
 import six
@@ -12,6 +13,8 @@ GODADDY = 'godaddy'
 BACKENDS = (
     GODADDY,
 )
+
+logger = logging.getLogger(__name__)
 
 class DNSSatchel(Satchel):
     """
@@ -38,13 +41,10 @@ class DNSSatchel(Satchel):
         secret = self.genv.godaddy_api_keys[domain]['secret']
         my_acct = Account(api_key=key, api_secret=secret)
         client = Client(my_acct)
-        #allowed_domains = set(client.get_domains())
         allowed_domains = get_domains(client)
-#         print('allowed_domains:', allowed_domains)
         assert domain in allowed_domains, \
             'Domain %s is invalid this account. Only domains %s are allowed.' % (domain, ', '.join(sorted(allowed_domains)))
-        #client.add_record(domain, {'data':'1.2.3.4','name':'test','ttl':3600, 'type':'A'})
-        print('Adding record:', domain, record_type, record)
+        logger.info('Adding record: %s %s %s', domain, record_type, record)
         if not self.dryrun:
             try:
                 max_retries = 10
@@ -61,13 +61,13 @@ class DNSSatchel(Satchel):
                         print_success('Record added!')
                         break
                     except ValueError as exc:
-                        print('Error adding DNS record on attempt %i of %i: %s' % (retry+1, max_retries, exc))
+                        logger.error('Error adding DNS record on attempt %i of %i: %s', retry+1, max_retries, exc)
                         if retry + 1 == max_retries:
                             raise
                         time.sleep(3)
             except BadResponse as e:
-                if e._message['code'] == 'DUPLICATE_RECORD':
-                    print('Ignoring duplicate record.')
+                if e.message['code'] == 'DUPLICATE_RECORD':
+                    logger.warning('Ignoring duplicate record.')
                 else:
                     raise
 
@@ -78,7 +78,7 @@ class DNSSatchel(Satchel):
 
     @task
     @runs_once
-    def update_dns(self):
+    def update_dns(self, name=None):
         """
         Loop over zone file and add/update any missing entries.
         """
@@ -92,7 +92,7 @@ class DNSSatchel(Satchel):
             types = zone_data['types']
             if backend not in BACKENDS:
                 raise NotImplementedError('Unsupported backend: %s' % backend)
-            print('Processing zone file %s for domain %s.' % (zone_file, domain))
+            logger.info('Processing zone file %s for domain %s.', zone_file, domain)
             zone_data = open(zone_file).read()
             zone_data = parse_zone_file(zone_data)
             if self.verbose:
@@ -105,6 +105,8 @@ class DNSSatchel(Satchel):
                 record_type = record_type.lower()
                 for record in zone_data.get(record_type):
                     backend_updater = getattr(self, 'update_dns_%s' % backend)
+                    if name and name not in record['name']:
+                        continue
                     backend_updater(domain=domain, record_type=record_type, record=record)
 
     def record_manifest(self):
