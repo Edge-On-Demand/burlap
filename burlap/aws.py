@@ -39,9 +39,10 @@ class EC2MonitorSatchel(Satchel):
         ]
         self.env.access_key_id = None
         self.env.secret_access_key = None
+        # Run every 5 minutes by default.
+        # Increase to every minute ('* * * * *') if Detailed Monitoring is enabled on the EC2 instance(s).
+        self.env.schedule = '*/5 * * * *'
 
-        #r = self._get_renderer(verify=False)
-        #cmd = #.format(**r.env)
         self.define_cron_job(
             template='etc_crond_ec2monitor',
             script_path='/etc/cron.d/ec2monitor',
@@ -53,10 +54,10 @@ class EC2MonitorSatchel(Satchel):
 
         r.env.install_path = r.env.install_path.format(**{'user': self.genv.user})
 
-        kwargs = dict(
-            role=self.genv.ROLE,
-            install_path=r.env.install_path,
-        )
+        kwargs = {
+            'role': self.genv.ROLE,
+            'install_path': r.env.install_path,
+        }
         r.env.awscreds = r.env.awscreds.format(**kwargs)
         r.env.awscreds_install_path = r.env.awscreds_install_path.format(**kwargs)
 
@@ -68,7 +69,11 @@ class EC2MonitorSatchel(Satchel):
         return r
 
     def _get_check_command(self):
-        return 'cd {install_path}; export AWS_CREDENTIAL_FILE={awscreds_install_path}; ./mon-put-instance-data.pl {command_options}'
+        return (
+            'cd {install_path} '
+            '&& export AWS_CREDENTIAL_FILE={awscreds_install_path} '
+            '&& ./mon-put-instance-data.pl {command_options} '
+        )
 
     @task
     def clear_host_data_cache(self):
@@ -101,17 +106,13 @@ class EC2MonitorSatchel(Satchel):
         r.run('cd ~; curl http://aws-cloudwatch.s3.amazonaws.com/downloads/CloudWatchMonitoringScripts-1.2.1.zip -O')
         r.run('cd ~; unzip -o CloudWatchMonitoringScripts-1.2.1.zip')
         r.run('cd ~; rm CloudWatchMonitoringScripts-1.2.1.zip')
-        r.put(
-            local_path=local_path,
-            remote_path=r.env.awscreds_install_path,
-        )
+        r.put(local_path=local_path, remote_path=r.env.awscreds_install_path)
 
         self.clear_host_data_cache()
         self.install_cron_job(
             name='default',
-            extra=dict(
-                command=self._get_check_command().format(**r.env)
-            ))
+            extra={'command': self._get_check_command().format(**r.env), 'schedule': self.env.schedule}
+        )
 
     @task
     def uninstall(self):
