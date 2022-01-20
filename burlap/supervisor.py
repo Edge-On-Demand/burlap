@@ -208,7 +208,7 @@ class SupervisorSatchel(ServiceSatchel):
             fn = self.render_to_file(self.env.config_template)
             self.put(local_path=fn, remote_path=self.env.config_path, use_sudo=True)
 
-    def deploy_services(self, site=None):
+    def deploy_services(self, site=None, restart=1):
         """
         Collect the configurations for all registered services and write the appropriate supervisord.conf file.
         """
@@ -253,8 +253,9 @@ class SupervisorSatchel(ServiceSatchel):
         fn = self.render_to_file(self.env.config_template)
         r.put(local_path=fn, remote_path=self.env.config_path, use_sudo=True)
 
-        self.start()
-        self.update()
+        if int(restart):
+            self.start()
+            self.update()
 
     @task(precursors=['packager', 'user', 'rabbitmq'])
     def configure(self, **kwargs):

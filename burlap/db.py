@@ -343,34 +343,39 @@ class DatabaseSatchel(ServiceSatchel):
             name=name,
             site=site,
         )
+        local_exists = os.path.isfile(os.path.abspath(r.env.dump_fn))
 
         # Dump the database to a snapshot file.
-        #if not os.path.isfile(os.path.abspath(r.env.dump_fn))):
-        r.pc('Dumping database snapshot.')
-        if from_local:
-            r.local(r.env.dump_command)
-        elif use_sudo:
-            r.sudo(r.env.dump_command)
+        if not to_local or (to_local and not local_exists):
+
+            r.pc('Dumping database snapshot.')
+            if from_local:
+                r.local(r.env.dump_command)
+            elif use_sudo:
+                r.sudo(r.env.dump_command)
+            else:
+                r.run(r.env.dump_command)
+
+            # Download the database dump file on the remote host to localhost.
+            if not from_local and to_local:
+                r.pc('Downloading database snapshot to localhost.')
+                r.local('rsync -rvz --progress --recursive --no-p --no-g '
+                    '--rsh "ssh -o StrictHostKeyChecking=no -i {key_filename}" {user}@{host_string}:{dump_fn} {dump_fn}')
+
+                # Delete the snapshot file on the remote system.
+                if int(cleanup):
+                    r.pc('Deleting database snapshot on remote host.')
+                    r.sudo('rm {dump_fn}')
+
+            # Move the database snapshot to an archive directory.
+            if to_local and int(archive):
+                r.pc('Archiving database snapshot.')
+                db_fn = r.render_fn(r.env.dump_fn)
+                r.env.archive_fn = '%s/%s' % (env.db_dump_archive_dir, os.path.split(db_fn)[-1])
+                r.local('mv %s %s' % (db_fn, env.archive_fn))
+
         else:
-            r.run(r.env.dump_command)
-
-        # Download the database dump file on the remote host to localhost.
-        if not from_local and to_local:
-            r.pc('Downloading database snapshot to localhost.')
-            r.local('rsync -rvz --progress --recursive --no-p --no-g '
-                '--rsh "ssh -o StrictHostKeyChecking=no -i {key_filename}" {user}@{host_string}:{dump_fn} {dump_fn}')
-
-            # Delete the snapshot file on the remote system.
-            if int(cleanup):
-                r.pc('Deleting database snapshot on remote host.')
-                r.sudo('rm {dump_fn}')
-
-        # Move the database snapshot to an archive directory.
-        if to_local and int(archive):
-            r.pc('Archiving database snapshot.')
-            db_fn = r.render_fn(r.env.dump_fn)
-            r.env.archive_fn = '%s/%s' % (env.db_dump_archive_dir, os.path.split(db_fn)[-1])
-            r.local('mv %s %s' % (db_fn, env.archive_fn))
+            r.pc('Local dump file already exists.')
 
         return r.env.dump_fn
 
