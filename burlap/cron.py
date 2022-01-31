@@ -10,8 +10,6 @@ class CronSatchel(ServiceSatchel):
 
     ## Service options.
 
-    #ignore_errors = True
-
     post_deploy_command = None
 
     @property
@@ -54,7 +52,6 @@ class CronSatchel(ServiceSatchel):
                 FEDORA: 'systemctl enable crond.service',
                 UBUNTU: 'systemctl enable cron',
                 (UBUNTU, '14.04'): 'update-rc.d cron defaults',
-                (UBUNTU, '16.04'): 'systemctl enable cron',
             },
             RESTART:{
                 FEDORA: 'systemctl restart crond.service',
@@ -74,10 +71,17 @@ class CronSatchel(ServiceSatchel):
     @task
     def record_manifest(self):
         """
-        Run satchel when sites are added or removed.
+        Run satchel when sites are added or removed or crontabs are modified.
         """
         manifest = super().record_manifest()
         manifest['available_sites_by_host'] = self.genv.available_sites_by_host
+        active_cron_lines = {} # {site: cron_lines}
+        for _site, site_data in self.iter_sites(site=self.genv.SITE):
+            lines = []
+            for selected_crontab in self.env.crontabs_selected:
+                lines.append(self.env.crontabs_available.get(selected_crontab, []))
+            active_cron_lines[_site] = lines
+        manifest['active_cron_lines'] = active_cron_lines
         return manifest
 
     @task
@@ -100,8 +104,6 @@ class CronSatchel(ServiceSatchel):
         self.deploy_logrotate()
 
         cron_crontabs = []
-#         if self.verbose:
-#             print('hostname: "%s"' % (hostname,), file=sys.stderr)
         for _site, site_data in self.iter_sites(site=site):
             r.env.cron_stdout_log = r.format(r.env.stdout_log_template)
             r.env.cron_stderr_log = r.format(r.env.stderr_log_template)

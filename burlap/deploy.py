@@ -62,6 +62,17 @@ def get_deploy_funcs(components, current_thumbprint, previous_thumbprint, previe
             else:
                 yield func_name, partial(func)
 
+def component_names_to_set(s):
+    """
+    Cleans and normalizes a string representing a component name list to a set of names.
+    """
+    if s is None:
+        return
+    if isinstance(s, str):
+        s = set(_.strip() for _ in s.split(',') if _.strip())
+    assert isinstance(s, (tuple, list, set)), 'Invalid component name type: %s' % type(s)
+    return set(_.upper() for _ in s)
+
 class DeploySatchel(ContainerSatchel):
 
     name = 'deploy'
@@ -97,7 +108,7 @@ class DeploySatchel(ContainerSatchel):
         tp_fn = r.format(r.env.data_dir + '/manifest.yaml')
         return tp_fn
 
-    def get_current_thumbprint(self, components=None):
+    def get_current_thumbprint(self, components=None, ignore=None):
         """
         Returns a dictionary representing the current configuration state.
 
@@ -113,11 +124,14 @@ class DeploySatchel(ContainerSatchel):
             }
 
         """
+        ignore_components = component_names_to_set(ignore)
         components = str_to_component_list(components)
         if self.verbose:
             print('deploy.get_current_thumbprint.components:', components)
         manifest_data = {} # {component:data}
         for component_name, func in sorted(manifest_recorder.items()):
+            if ignore_components and component_name.upper() in ignore_components:
+                continue
             self.vprint('Checking thumbprint for component %s...' % component_name)
             manifest_key = assert_valid_satchel(component_name)
             service_name = clean_service_name(component_name)
@@ -135,7 +149,7 @@ class DeploySatchel(ContainerSatchel):
 
         return manifest_data
 
-    def get_previous_thumbprint(self, components=None):
+    def get_previous_thumbprint(self, components=None, ignore=None):
         """
         Returns a dictionary representing the previous configuration state.
 
@@ -151,6 +165,7 @@ class DeploySatchel(ContainerSatchel):
             }
 
         """
+        ignore_components = component_names_to_set(ignore)
         components = str_to_component_list(components)
         tp_fn = self.manifest_filename
         if self.file_exists(tp_fn):
@@ -163,6 +178,8 @@ class DeploySatchel(ContainerSatchel):
                 manifest_key = assert_valid_satchel(k)
                 service_name = clean_service_name(k)
                 if components and service_name not in components:
+                    continue
+                if ignore_components and service_name.upper() in ignore_components:
                     continue
                 manifest_data[manifest_key] = v
             return manifest_data
@@ -217,18 +234,19 @@ class DeploySatchel(ContainerSatchel):
         # Ensure all cached manifests are cleared, so they reflect the newly deployed changes.
         self.reset_all_satchels()
 
-    def get_component_funcs(self, components=None):
+    def get_component_funcs(self, components=None, ignore=None):
         """
         Calculates the components functions that need to be executed for a deployment.
 
         Args:
             components (str): Comma-separated list of components to deploy
+            ignore (str): Comma-separated list of components to exclude from deployment
         Returns:
             (component_order, plan_funcs)
         """
 
-        current_tp = self.get_current_thumbprint(components=components) or {}
-        previous_tp = self.get_previous_thumbprint(components=components) or {}
+        current_tp = self.get_current_thumbprint(components=components, ignore=ignore) or {}
+        previous_tp = self.get_previous_thumbprint(components=components, ignore=ignore) or {}
 
         if self.verbose:
             print('Current thumbprint:')
@@ -249,7 +267,7 @@ class DeploySatchel(ContainerSatchel):
         return component_order, plan_funcs
 
     @task
-    def preview(self, components=None, ask=0, show_issues=1):
+    def preview(self, components=None, ask=0, show_issues=1, ignore=None):
         """
         Inspects differences between the last deployment and the current code state.
 
@@ -257,6 +275,7 @@ class DeploySatchel(ContainerSatchel):
             components (str): Comma-separated list of components to deploy
             ask (cast to int): Show confirmation prompt
             show_issues (cast to int): Show Jira issues linked to previewed commits
+            ignore (str): Comma-separated list of components to exclude from deployment
         """
         from burlap.git import gittracker, CURRENT_COMMIT
         from burlap.jirahelper import jirahelper
@@ -266,7 +285,7 @@ class DeploySatchel(ContainerSatchel):
 
         self.init()
 
-        component_order, plan_funcs = self.get_component_funcs(components=components)
+        component_order, plan_funcs = self.get_component_funcs(components=components, ignore=ignore)
 
         print('\n%i changes found for host %s.\n' % (len(component_order), self.genv.host_string))
         if component_order and plan_funcs:
@@ -299,7 +318,7 @@ class DeploySatchel(ContainerSatchel):
                 sys.exit(0)
 
     @task
-    def push(self, components=None, yes=0, show_preview=0, show_issues=1):
+    def push(self, components=None, yes=0, show_preview=0, show_issues=1, ignore=None):
         """
         Executes all satchel configurators to apply pending changes to the server.
 
@@ -308,6 +327,7 @@ class DeploySatchel(ContainerSatchel):
             yes (cast to int): Bypass confirmation prompt
             show_preview (cast to int): Show deploy preview even if confirmation prompt is bypassed
             show_issues (cast to int): Show Jira issues linked to previewed commits
+            ignore (str): Comma-separated list of components to exclude from deployment
         """
         from burlap import notifier # pylint: disable=import-outside-toplevel
 
@@ -323,10 +343,11 @@ class DeploySatchel(ContainerSatchel):
                 # If we want to confirm the deployment with the user, and we're at the first server,
                 # then run the preview.
                 if self.genv.host_string == self.genv.hosts[0]:
-                    execute(partial(self.preview, components=components, ask=not yes, show_issues=show_issues))
+                    execute(partial(self.preview,
+                        components=components, ask=not yes, show_issues=show_issues, ignore=ignore))
 
             notifier.notify_pre_deployment()
-            component_order, plan_funcs = self.get_component_funcs(components=components)
+            component_order, plan_funcs = self.get_component_funcs(components=components, ignore=ignore)
 
             service.pre_deploy()
             for func_name, plan_func in plan_funcs:
