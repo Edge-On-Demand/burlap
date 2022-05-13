@@ -141,6 +141,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             (UBUNTU, '16.04'): ['postgresql-10'],
             (UBUNTU, '18.04'): ['postgresql-11'],
             (UBUNTU, '20.04'): ['postgresql-14'],
+            (UBUNTU, '22.04'): ['postgresql-14'],
         }
 
     def set_defaults(self):
@@ -223,6 +224,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 if ver.release == '20.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main'],
+                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                    }
+                if ver.release == '22.04':
+                    return {
+                        APT: ['deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
         raise NotImplementedError
@@ -697,6 +703,7 @@ class PostgreSQLClientSatchel(Satchel):
             (UBUNTU, '16.04'): ['postgresql-client-10'],
             (UBUNTU, '18.04'): ['postgresql-client-11'],
             (UBUNTU, '20.04'): ['postgresql-client-14'],
+            (UBUNTU, '22.04'): ['postgresql-client-14'],
         }
 
     #https://askubuntu.com/questions/831292/how-to-install-postgresql-9-6-on-any-ubuntu-version
@@ -718,6 +725,11 @@ class PostgreSQLClientSatchel(Satchel):
                 if ver.release == '20.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main'],
+                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                    }
+                if ver.release == '22.04':
+                    return {
+                        APT: ['deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main'],
                         APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
                     }
         raise NotImplementedError
