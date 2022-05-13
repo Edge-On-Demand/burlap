@@ -165,8 +165,8 @@ class ProjectSatchel(ContainerSatchel):
         """
         try:
             import ruamel.yaml # pylint: disable=import-outside-toplevel
-            load_func = ruamel.yaml.round_trip_load
-            dump_func = ruamel.yaml.round_trip_dump
+            load_func = ruamel.yaml.YAML().load
+            dump_func = ruamel.yaml.YAML().dump
         except ImportError:
             print('Warning: ruamel.yaml not available, reverting to yaml package, possible lost of formatting may occur.')
             import yaml # pylint: disable=import-outside-toplevel
