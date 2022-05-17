@@ -54,7 +54,7 @@ class BuildbotTests(TestCase):
             print('deploy_from_dir:', deploy_from_dir)
             os.makedirs(os.path.join(deploy_from_dir, 'all'))
             with open(os.path.join(deploy_from_dir, 'all', 'apt-requirements.txt'), 'w') as fout:
-                fout.write('python-dev\npython3-dev\n')
+                fout.write('python3-dev\n')
             with open(os.path.join(deploy_from_dir, 'all', 'pip-requirements.txt'), 'w') as fout:
                 fout.write('buildbot[bundle]==0.9.5\n')
 

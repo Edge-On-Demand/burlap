@@ -72,7 +72,7 @@ def install(packages, update=False, options=None, version=None):
 
         # Install multiple packages
         burlap.deb.install([
-            'python-dev',
+            'python3-dev',
             'libxml2-dev',
         ])
 

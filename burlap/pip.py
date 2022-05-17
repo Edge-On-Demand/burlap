@@ -23,7 +23,7 @@ class PIPSatchel(Satchel):
     def packager_system_packages(self):
         return {
             UBUNTU: [
-                'gcc', 'python-dev', 'build-essential', 'python3-pip',
+                'gcc', 'python3-dev', 'build-essential', 'python3-pip',
             ],
         }
 
