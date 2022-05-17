@@ -372,20 +372,20 @@ class RaspberryPiSatchel(Satchel):
     @property
     def packager_system_packages(self):
         UBUNTU_lst = [
-            'curl', 'gcc', 'python-dev', 'git',
+            'curl', 'gcc', 'python3-dev', 'git',
             'binutils',
             'rpi-update',
             'raspi-config',
         ]
         RASPBIAN_lst = [
-            'curl', 'gcc', 'python-dev', 'git',
+            'curl', 'gcc', 'python3-dev', 'git',
             'rpi-update',
             'binutils',
         ]
 
         if self.env.i2c_enabled:
-            UBUNTU_lst.extend(['python-smbus', 'i2c-tools', 'git', 'python-dev', 'libi2c-dev'])
-            RASPBIAN_lst.extend(['python-smbus', 'i2c-tools', 'git', 'python-dev', 'libi2c-dev'])
+            UBUNTU_lst.extend(['python-smbus', 'i2c-tools', 'git', 'python3-dev', 'libi2c-dev'])
+            RASPBIAN_lst.extend(['python-smbus', 'i2c-tools', 'git', 'python3-dev', 'libi2c-dev'])
 
         return {
             UBUNTU: UBUNTU_lst,
@@ -587,7 +587,7 @@ class RaspberryPiSatchel(Satchel):
         if self.env.i2c_enabled:
             r.pc('Enabling I2C.')
 
-            #r.sudo('apt-get install --yes python-smbus i2c-tools git python-dev')
+            #r.sudo('apt-get install --yes python-smbus i2c-tools git python3-dev')
 
 #             r.sudo("sh -c 'echo \"i2c-bcm2708\" >> /etc/modules'")
 #             r.sudo("sh -c 'echo \"i2c-dev\" >> /etc/modules'")
