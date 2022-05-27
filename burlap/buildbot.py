@@ -30,8 +30,10 @@ class BuildBotSatchel(ServiceSatchel):
 
         self.env.ssh_bin = '{home_dir}/bin'
         self.env.ssh_dir = '{home_dir}/.ssh'
-        self.env.ssh_private_key = None # should be a *.pem file
-        self.env.ssh_public_key = None # should be a *.pub file
+        self.env.ssh_private_key = 'roles/{ROLE}/id_ed25519' # Relative path to local copy of SSH private key
+        self.env.ssh_public_key = 'roles/{ROLE}/id_ed25519.pub' # Relative path to local copy of SSH public key
+        self.env.private_remote_path = '{ssh_dir}/id_ed25519' # Absolute path to remote copy of SSH private key
+        self.env.public_remote_path = '{ssh_dir}/id_ed25519.pub' # Absolute path to remote copy of SSH public key
 
         # Must match the main user, or otherwise we get rsync errors.
         self.env.user = 'ubuntu'
@@ -389,13 +391,12 @@ class BuildBotSatchel(ServiceSatchel):
 
     @task
     def configure_ssh_key(self):
+        """
+        Install the read-only SSH key on the server, so it can access private git repos.
+        """
         r = self.local_renderer
-        r.env.private_remote_path = '{ssh_dir}/id_rsa'
-        r.env.public_remote_path = '{ssh_dir}/id_rsa.pub'
         if r.env.use_ssh_key:
             #https://www.cyberciti.biz/faq/how-to-set-up-ssh-keys-on-linux-unix/
-            assert r.env.ssh_private_key, 'No SSH private key specified!'
-            assert r.env.ssh_public_key, 'No SSH public key specified!'
             r.sudo('mkdir -p {ssh_dir}')
             r.put(local_path=r.env.ssh_private_key, remote_path=r.env.private_remote_path, use_sudo=True)
             r.put(local_path=r.env.ssh_public_key, remote_path=r.env.public_remote_path, use_sudo=True)
