@@ -263,11 +263,10 @@ class BuildBotSatchel(ServiceSatchel):
         pip.update_install(
             requirements=self.env.requirements,
             virtualenv_dir=self.env.virtualenv_dir,
-            user=self.env.user,
-            group=self.env.group,
+            user=self.env.bb_user,
+            group=self.env.bb_group,
             perms=self.env.perms,
         )
-        #r.sudo('{virtualenv_dir}/bin/pip install -U pip')
         r.sudo('chown -R {user}:{group} {project_dir}')
         r.sudo('chmod -R {perms} {project_dir}')
 
