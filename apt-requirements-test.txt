@@ -4,5 +4,6 @@ qemu
 qemu-kvm
 libvirt-bin
 build-essential
+python3.9-venv
 # Not strictly necessary, but useful for debugging and managing local VM instances.
 virt-manager

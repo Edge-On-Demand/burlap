@@ -67,7 +67,7 @@ except (ImportError, NameError) as e:
     print('Unable to initialize debug: %s' % e, file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 100)
+VERSION = (0, 9, 101)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
@@ -209,6 +209,11 @@ def update_merge(d, u):
     return d
 
 def find_yaml_settings_fn(name, local=False, fn='settings.yaml'):
+    # If name is a valid path, then use that.
+    if os.path.isfile(fn):
+        return fn
+    # Otherwise, include file names are symbolic and implicitly refer to a "settings.yaml" file
+    # in an explicitly named role directory.
     if local:
         settings_fn = os.path.join(common.ROLE_DIR, name, 'settings_local.yaml')
     else:
