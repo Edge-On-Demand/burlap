@@ -9,10 +9,14 @@ processes using `supervisord`_.
 
 """
 import os
+import logging
 
 from burlap.constants import *
 from burlap import ServiceSatchel
 from burlap.decorators import task
+from burlap.utils import get_file_hash
+
+logger = logging.getLogger(__name__)
 
 
 class SupervisorSatchel(ServiceSatchel):
@@ -41,6 +45,9 @@ class SupervisorSatchel(ServiceSatchel):
         self.env.supervisorctl_path_template = '{pip_virtualenv_dir}/bin/supervisorctl'
         self.env.kill_pattern = ''
         self.env.services_rendered = ''
+
+        # Extra configuration files to watch for changes.
+        self.env.conf_files = []
 
         # If true, then all configuration files not explicitly managed by use will be deleted.
         self.env.purge_all_confs = True
@@ -92,6 +99,15 @@ class SupervisorSatchel(ServiceSatchel):
 
     def register_callback(self, f):
         self.genv._supervisor_create_service_callbacks.append(f)
+
+    def register_conf_files(self, path):
+        """
+        Notifies the satchel to watch the given path to a configuration file for changes.
+        If the hash of this file changes, then this satchel will run it's configure() method.
+        """
+        logger.debug('Reigstering file %s to watch for changes.', path)
+        r = self.local_renderer
+        r.env.conf_files.append(path)
 
     @task
     def start_all(self):
@@ -170,6 +186,11 @@ class SupervisorSatchel(ServiceSatchel):
 
         # Generate services list.
         self.write_configs(upload=0)
+
+        r = self.local_renderer
+        data['conf_file_hashes'] = []
+        for conf_path in r.env.conf_files:
+            data['conf_file_hashes'].append(get_file_hash(conf_path))
 
         return data
 

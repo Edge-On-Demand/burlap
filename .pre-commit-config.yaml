@@ -4,3 +4,17 @@ repos:
     hooks:
     -   id: yapf
         args: [--in-place, --parallel, --recursive]
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v2.37.2
+    hooks:
+    -   id: pyupgrade
+        args: [--py39-plus]
+-   repo: local
+    hooks:
+    -   id: pylint
+        name: pylint
+        entry: .env/bin/pylint
+        language: system
+        types: [python]
+        require_serial: false
+        args: [--rcfile=pylint.rc, --jobs=0]
