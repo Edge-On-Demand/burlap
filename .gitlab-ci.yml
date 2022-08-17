@@ -14,7 +14,7 @@ before_script:
   - ls /etc/apt/sources.list.d
   - rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
   - apt-get -yq update
-  - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.9-minimal python3.9 python3.9-dev python3.9-venv python3-pip python3-setuptools
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.9 python3.9-minimal python3.9-dev python3.9-venv python3.9-distutils
   - apt-get -yq purge postgr* || true
   - apt-get -yq purge virtualbox* || true
   - apt-get -yq purge oracle-java* || true
@@ -41,11 +41,14 @@ before_script:
 
 test:
   script:
-  - python3.7 -m venv .env
+  - python3.9 -m venv .env
   - ". .env/bin/activate"
-  - "pip --version"
-  - "pip install -r requirements-test.txt"
-  - "pylint --version"
+  - pip --version
+  - pip install -U setuptools
+  - pip install -U pip
+  - pip install -U distlib
+  - pip install -r requirements-test.txt
+  - pylint --version
   - ./pep8.sh
   #- "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
   -   tox -c tox-travis.ini -e py39-no_vagrant
