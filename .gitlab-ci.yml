@@ -7,14 +7,14 @@ cache:
 
 before_script:
   - cat /etc/lsb-release
-  - apt-get -yq update
-  - apt-get -yq install software-properties-common systemd openssh-client openssh-server
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq update
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install software-properties-common systemd openssh-client openssh-server
   - add-apt-repository -y ppa:deadsnakes/ppa
   - apt -yq purge google-chrome* || true
   - ls /etc/apt/sources.list.d
   - rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
   - apt-get -yq update
-  - apt-get -yq install python3.9-minimal python3.9 python3.9-dev python3.9-venv python3-pip python3-setuptools
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.9-minimal python3.9 python3.9-dev python3.9-venv python3-pip python3-setuptools
   - apt-get -yq purge postgr* || true
   - apt-get -yq purge virtualbox* || true
   - apt-get -yq purge oracle-java* || true
