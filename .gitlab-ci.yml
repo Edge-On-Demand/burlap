@@ -14,7 +14,7 @@ before_script:
   - ls /etc/apt/sources.list.d
   - rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
   - apt-get -yq update
-  - apt-get -yq install python-minimal python2.7 python2.7-dev python3.7 python3.7-dev python-pip python3-pip python3-setuptools python3-venv python3.7-venv
+  - apt-get -yq install python3.7-minimal python3.7 python3.7-dev python3-pip python3-setuptools python3-venv python3.7-venv
   - apt-get -yq purge postgr* || true
   - apt-get -yq purge virtualbox* || true
   - apt-get -yq purge oracle-java* || true
@@ -26,6 +26,7 @@ before_script:
   - service ssh start
   - apt-get -o Dpkg::Options::="--force-confnew" --allow-downgrades --allow-remove-essential --allow-change-held-packages -fuy --allow-unauthenticated dist-upgrade
   - apt-get -yq install build-essential
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3.7 10
   #- apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
   - python -V
   - pip3 install -r requirements-test.txt
@@ -39,7 +40,7 @@ before_script:
 
 test:
   script:
-  - virtualenv -p python3.7 .env
+  - python3.7 -m venv .env
   - ". .env/bin/activate"
   - "pip --version"
   - "pip install -r requirements-test.txt"
