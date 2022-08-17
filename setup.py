@@ -8,9 +8,10 @@ os.environ['BURLAP_NO_LOAD'] = '1'
 
 import burlap # pylint: disable=wrong-import-position
 
-read_md = lambda f: open(f, 'r').read()
+read_md = lambda f: open(f).read()
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 def read(filename):
     path = os.path.join(os.path.dirname(__file__), filename)
@@ -18,12 +19,10 @@ def read(filename):
         text = fin.read().decode('utf-8')
     return text
 
+
 def get_reqs(fn):
-    return [
-        _.strip()
-        for _ in open(os.path.join(CURRENT_DIR, fn)).readlines()
-        if _.strip() and not _.strip().startswith('#')
-    ]
+    return [_.strip() for _ in open(os.path.join(CURRENT_DIR, fn)).readlines() if _.strip() and not _.strip().startswith('#')]
+
 
 class Tox(TestCommand):
 
@@ -36,6 +35,7 @@ class Tox(TestCommand):
         import tox # pylint: disable=import-outside-toplevel
         tox.cmdline(self.test_args)
         sys.exit(0)
+
 
 setup(
     name="burlap",
@@ -57,9 +57,7 @@ setup(
     url="https://gitlab.com/chrisspen/burlap",
     #https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        #'Development Status :: 3 - Alpha',
-        'Development Status :: 4 - Beta',
-        #'Development Status :: 5 - Production/Stable',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
@@ -67,7 +65,7 @@ setup(
         'Operating System :: Unix',
         'Operating System :: POSIX',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.9',
         'Topic :: Software Development',
         'Topic :: Software Development :: Build Tools',
         'Topic :: Software Development :: Libraries',

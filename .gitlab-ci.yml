@@ -14,7 +14,7 @@ before_script:
   - ls /etc/apt/sources.list.d
   - rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
   - apt-get -yq update
-  - apt-get -yq install python3.7-minimal python3.7 python3.7-dev python3-pip python3-setuptools python3-venv python3.7-venv
+  - apt-get -yq install python3.9-minimal python3.9 python3.9-dev python3.9-venv python3-pip python3-setuptools
   - apt-get -yq purge postgr* || true
   - apt-get -yq purge virtualbox* || true
   - apt-get -yq purge oracle-java* || true
@@ -26,12 +26,11 @@ before_script:
   - service ssh start
   - apt-get -o Dpkg::Options::="--force-confnew" --allow-downgrades --allow-remove-essential --allow-change-held-packages -fuy --allow-unauthenticated dist-upgrade
   - apt-get -yq install build-essential
-  - update-alternatives --install /usr/bin/python python /usr/bin/python3.7 10
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
   #- apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
   - python -V
-  - python3.7 -m pip install package
-  - pip --version
-  - pip install -r requirements-test.txt
+  - python3.9 -m pip --version
+  - python3.9 -m pip install -r requirements-test.txt
 
   # Allow us to SSH passwordless to localhost
   - ssh-keygen -f ~/.ssh/id_rsa -N ""
@@ -49,4 +48,4 @@ test:
   - "pylint --version"
   - ./pep8.sh
   #- "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
-  -   tox -c tox-travis.ini -e py37-no_vagrant
+  -   tox -c tox-travis.ini -e py39-no_vagrant
