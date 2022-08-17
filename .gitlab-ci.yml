@@ -29,7 +29,9 @@ before_script:
   - update-alternatives --install /usr/bin/python python /usr/bin/python3.7 10
   #- apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
   - python -V
-  - pip3 install -r requirements-test.txt
+  - pip --version
+  #- python3.7 -m pip install package
+  - pip install -r requirements-test.txt
 
   # Allow us to SSH passwordless to localhost
   - ssh-keygen -f ~/.ssh/id_rsa -N ""
