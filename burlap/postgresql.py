@@ -542,10 +542,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 "REASSIGN OWNED BY {db_user} TO {db_root_username}; "
                 "DROP OWNED BY {db_user} CASCADE;", name=name, site=site, as_db_root_user=True, ignore_errors=True)
 
-        # Create db user and assign privileges as appropriate
+        # Create db user and assign privileges as appropriate, but don't allow connections yet,
+        # as they could interfere with pg_restore.
         self.execute(
             "DROP USER IF EXISTS {db_user}; "
-            "CREATE USER {db_user} WITH PASSWORD '{db_password}';", name=name, site=site, as_db_root_user=True)
+            "CREATE USER {db_user} WITH PASSWORD '{db_password}' CONNECTION LIMIT 0;", name=name, site=site, as_db_root_user=True)
         if not r.env.schema_mt:
             self.execute("GRANT ALL PRIVILEGES ON DATABASE {db_name} to {db_user};", name=name, site=site, as_db_root_user=True)
             for createlang in r.env.createlangs:
@@ -565,6 +566,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 r.sudo(r.env.load_command, user=r.env.postgres_user)
             else:
                 r.run(r.env.load_command)
+
+        # Allow connections for the user, now that restoration is complete.
+        # This won't run if the load fails, but that may be a good thing, as we don't want users to connect to or modify
+        # a potentially corrupted schema.
+        self.execute("ALTER USER {db_user} CONNECTION LIMIT -1;", name=name, site=site, as_db_root_user=True)
 
     @task
     def shell(self, name='default', site=None, **kwargs):
