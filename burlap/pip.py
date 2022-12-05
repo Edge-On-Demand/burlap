@@ -23,7 +23,10 @@ class PIPSatchel(Satchel):
     def packager_system_packages(self):
         return {
             UBUNTU: [
-                'gcc', 'python3-dev', 'build-essential', 'python3-pip',
+                'gcc',
+                'python3-dev',
+                'build-essential',
+                'python3-pip',
             ],
         }
 
@@ -34,7 +37,7 @@ class PIPSatchel(Satchel):
         self.env.perms = '775'
         self.env.virtualenv_dir = '.env'
         self.env.requirements = 'pip-requirements.txt'
-        self.env.python_version = '3.7'
+        self.env.python_version = '3.9'
 
     @task
     def has_pip(self):
@@ -97,7 +100,7 @@ class PIPSatchel(Satchel):
             virtualenv_dir = self.env.virtualenv_dir
         with self.settings(warn_only=True):
             ls_output = r.run_or_local('ls {virtualenv_dir}') or ''
-            ret = 'bin' in ls_output.strip()  # Virtualenv should have a 'bin' directory
+            ret = 'bin' in ls_output.strip() # Virtualenv should have a 'bin' directory
 
         if ret:
             self.vprint(f'Virtualenv exists at {virtualenv_dir}.')
@@ -135,17 +138,15 @@ class PIPSatchel(Satchel):
         """
 
         def iter_lines(fn):
-            with open(fn, 'r') as fin:
+            with open(fn) as fin:
                 for line in fin.readlines():
                     line = line.strip()
                     if not line or line.startswith('#'):
                         continue
                     if line.startswith('-r'):
                         recursive_requirements = line[3:]
-                        self.vprint('Recursively including requirements from {}.'.format(recursive_requirements))
-                        recursive_requirements_path = os.path.join(
-                            self.genv.ROLES_DIR, self.genv.ROLE, recursive_requirements
-                        )
+                        self.vprint(f'Recursively including requirements from {recursive_requirements}.')
+                        recursive_requirements_path = os.path.join(self.genv.ROLES_DIR, self.genv.ROLE, recursive_requirements)
                         yield from iter_lines(recursive_requirements_path)
                     else:
                         yield line
@@ -223,5 +224,6 @@ class PIPSatchel(Satchel):
         self.genv['sudo_prefix'] += '-H '
 
         self.update_install(*args, **kwargs)
+
 
 pip = PIPSatchel()
