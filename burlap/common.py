@@ -19,8 +19,7 @@ from collections import namedtuple, OrderedDict
 from pprint import pprint
 from functools import partial
 
-import six
-from six import StringIO
+from io import StringIO
 
 import yaml
 
@@ -33,7 +32,7 @@ from fabric.api import (
     settings,
     sudo as _sudo,
     hide,
-#    runs_once,
+    #    runs_once,
     local as _local,
 )
 from fabric.contrib import files
@@ -61,6 +60,7 @@ OS = namedtuple('OS', ['type', 'distro', 'release'])
 ROLE_DIR = 'roles'
 
 default_env = None
+
 
 def init_env():
     """
@@ -123,7 +123,6 @@ state_variables = [
     'required_system_packages',
     'required_python_packages',
     'required_ruby_packages',
-
     'service_configurators',
     'service_pre_deployers',
     'service_pre_db_dumpers',
@@ -133,20 +132,15 @@ state_variables = [
     'service_restarters',
     'service_stoppers',
     'services',
-
     'manifest_recorder',
     'manifest_comparer',
     'manifest_deployers',
     'manifest_deployers_befores',
     'manifest_deployers_takes_diff',
-
     'post_callbacks',
     'post_role_load_callbacks',
-
     'post_import_modules',
-
     'all_satchels',
-
     'runs_once_methods',
 ]
 
@@ -187,6 +181,7 @@ SATCHEL_NAME_PATTERN = re.compile(r'^[a-z][a-z0-9]*$')
 CMD_VAR_REGEX = re.compile(r'(?<!\{){([^\{\}]+)}')
 CMD_ESCAPED_VAR_REGEX = re.compile(r'\{{2}[^\{\}]+\}{2}')
 
+
 def get_state():
     d = {}
     for k in state_variables:
@@ -196,9 +191,10 @@ def get_state():
         elif isinstance(v, list):
             v = list(v)
         else:
-            raise NotImplementedError('State variable %s has unknown type %s' % (k, type(v)))
+            raise NotImplementedError(f'State variable {k} has unknown type {type(v)}')
         d[k] = v
     return d
+
 
 def clear_state():
     d = {}
@@ -210,7 +206,8 @@ def clear_state():
             while v:
                 v.pop()
         else:
-            raise NotImplementedError('State variable %s has unknown type %s' % (k, type(v)))
+            raise NotImplementedError(f'State variable {k} has unknown type {type(v)}')
+
 
 def set_state(d):
     assert isinstance(d, dict), 'State must be a dictionary.'
@@ -221,10 +218,12 @@ def set_state(d):
         elif isinstance(v, list):
             globals()[k].extend(v)
         else:
-            raise NotImplementedError('State variable %s has unknown type %s' % (k, type(v)))
+            raise NotImplementedError(f'State variable {k} has unknown type {type(v)}')
+
 
 def deprecation(message):
     warnings.warn(message, DeprecationWarning, stacklevel=2)
+
 
 class Colors:
     HEADER = '\033[95m'
@@ -236,23 +235,30 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
 def start_error():
     print(Colors.FAIL)
+
 
 def end_error():
     print(Colors.ENDC)
 
+
 def fail_str(s):
     return Colors.FAIL + str(s) + Colors.ENDC
+
 
 def success_str(s):
     return Colors.OKGREEN + str(s) + Colors.ENDC
 
+
 def print_fail(s, file=None): # pylint: disable=redefined-builtin
     print(fail_str(s), file=file or sys.stderr)
 
+
 def print_success(s, file=None): # pylint: disable=redefined-builtin
     print(success_str(s), file=file or sys.stdout)
+
 
 def create_module(name, code=None):
     """
@@ -265,11 +271,12 @@ def create_module(name, code=None):
     module = sys.modules[name]
 
     if code:
-        print('executing code for %s: %s' % (name, code))
+        print(f'executing code for {name}: {code}')
         exec(code in module.__dict__) # pylint: disable=exec-used
-        exec("from %s import %s" % (name, '*')) # pylint: disable=exec-used
+        exec("from {} import {}".format(name, '*')) # pylint: disable=exec-used
 
     return module
+
 
 #http://www.saltycrane.com/blog/2010/09/class-based-fabric-scripts-metaprogramming-hack/
 #http://stackoverflow.com/questions/3799545/dynamically-importing-python-module/3799609#3799609
@@ -300,13 +307,13 @@ def add_class_methods_as_module_level_functions_for_fabric(instance, module_name
         # get the bound method
         func = getattr(instance, method_name)
 
-#         if module_name == 'buildbot' or module_alias == 'buildbot':
-#             print('-'*80)
-#             print('module_name:', module_name)
-#             print('method_name:', method_name)
-#             print('module_alias:', module_alias)
-#             print('module_obj:', module_obj)
-#             print('func.module:', func.__module__)
+        #         if module_name == 'buildbot' or module_alias == 'buildbot':
+        #             print('-'*80)
+        #             print('module_name:', module_name)
+        #             print('method_name:', method_name)
+        #             print('module_alias:', module_alias)
+        #             print('module_obj:', module_obj)
+        #             print('func.module:', func.__module__)
 
         # Convert executable to a Fabric task, if not done so already.
         if not hasattr(func, 'is_task_or_dryrun'):
@@ -326,10 +333,11 @@ def add_class_methods_as_module_level_functions_for_fabric(instance, module_name
             setattr(module_obj, method_name, func)
             post_import_modules.add(module_alias)
 
-        fabric_name = '%s.%s' % (module_alias or module_name, method_name)
+        fabric_name = f'{module_alias or module_name}.{method_name}'
         func.wrapped.__func__.fabric_name = fabric_name
 
         return func
+
 
 def str_to_list(s):
     """
@@ -339,22 +347,26 @@ def str_to_list(s):
         return []
     if isinstance(s, (tuple, list)):
         return s
-    if not isinstance(s, six.string_types):
+    if not isinstance(s, str):
         raise NotImplementedError('Unknown type: %s' % type(s))
     return [_.strip().lower() for _ in (s or '').split(',') if _.strip()]
+
 
 def assert_valid_satchel(name):
     name = name.strip().upper()
     assert name in all_satchels, 'Invalid satchel: %s' % name
     return name
 
+
 def clean_service_name(name):
     name = (name or '').strip().lower()
     return name
 
+
 def str_to_component_list(s):
     lst = [clean_service_name(name) for name in str_to_list(s)]
     return lst
+
 
 def add_deployer(event, func, before=None, after=None, takes_diff=False):
 
@@ -378,6 +390,7 @@ def add_deployer(event, func, before=None, after=None, takes_diff=False):
 
     manifest_deployers_takes_diff[func] = takes_diff
 
+
 def resolve_deployer(func_name):
 
     if '.' in func_name:
@@ -392,6 +405,7 @@ def resolve_deployer(func_name):
 
     return ret
 
+
 class Deployer:
     """
     Represents a task that must be run to update a service after a configuration change
@@ -404,12 +418,14 @@ class Deployer:
         self.after = after or []
         self.takes_diff = takes_diff
 
+
 def get_class_module_name(self):
     name = self.__module__
     if name == '__main__':
         filename = sys.modules[self.__module__].__file__
         name = os.path.splitext(os.path.basename(filename))[0]
     return name
+
 
 class _EnvProxy:
     """
@@ -447,9 +463,11 @@ class _EnvProxy:
             return object.__setattr__(self, k, v)
         env[self.satchel.env_prefix + k] = v
 
+
 def is_local():
     env.is_local = env.host_string in ('localhost', '127.0.0.1')
     return env.is_local
+
 
 def format(s, lenv, genv, prefix=None, ignored_variables=None): # pylint: disable=redefined-builtin
 
@@ -486,25 +504,20 @@ def format(s, lenv, genv, prefix=None, ignored_variables=None): # pylint: disabl
                 if verbose:
                     print('Found %s in genv.' % var_name)
                 var_values[var_name] = genv[var_name]
-            elif prefix and prefix+'_'+var_name in genv:
+            elif prefix and prefix + '_' + var_name in genv:
                 # Find unprefixed variable in global namespace.
                 if verbose:
                     print('Found prefix+%s in genv.' % var_name)
-                var_values[var_name] = genv[prefix+'_'+var_name]
-            elif prefix and var_name.startswith(prefix+'_') and var_name[len(prefix+'_'):] in lenv:
+                var_values[var_name] = genv[prefix + '_' + var_name]
+            elif prefix and var_name.startswith(prefix + '_') and var_name[len(prefix + '_'):] in lenv:
                 # Find prefixed variable in local namespace.
                 if verbose:
                     print('Found prefix-%s in genv.' % var_name)
-                var_values[var_name] = lenv[var_name[len(prefix+'_'):]]
+                var_values[var_name] = lenv[var_name[len(prefix + '_'):]]
             else:
-                raise Exception((
-                    'Command "%s" references variable "%s" which is not found '
-                    'in either the local or global namespace.') % (s, var_name))
+                raise Exception(('Command "%s" references variable "%s" which is not found ' 'in either the local or global namespace.') % (s, var_name))
 
-        escaped_var_names = dict(
-            (k, str(uuid.uuid4()))
-            for k in CMD_ESCAPED_VAR_REGEX.findall(s)
-        )
+        escaped_var_names = {k: str(uuid.uuid4()) for k in CMD_ESCAPED_VAR_REGEX.findall(s)}
         for k, v in escaped_var_names.items():
             s = s.replace(k, v)
 
@@ -526,6 +539,7 @@ def format(s, lenv, genv, prefix=None, ignored_variables=None): # pylint: disabl
 
     return s
 
+
 class Renderer:
     """
     Base convenience wrapper around command executioners.
@@ -542,7 +556,7 @@ class Renderer:
         # Copy the local environment dictionary so we don't modify the original.
         self.lenv = type(env)(obj.lenv if lenv is None else lenv)
 
-        self.genv = env#type(env)(obj.genv)
+        self.genv = env #type(env)(obj.genv)
 
         # If true, getattr will return None if no attribute set.
         self._set_default = set_default
@@ -567,7 +581,7 @@ class Renderer:
             e.update(self.genv)
         if include_local:
             for k, v in self.lenv.items():
-                e['%s_%s' % (self.obj.name.lower(), k)] = v
+                e[f'{self.obj.name.lower()}_{k}'] = v
         return e
 
     def __getitem__(self, key):
@@ -690,9 +704,11 @@ class Renderer:
 
         return ret
 
+
 class LocalRenderer(Renderer):
 
     env_type = 'lenv'
+
 
 class GlobalRenderer(Renderer):
 
@@ -710,11 +726,13 @@ def reset_all_satchels():
     for name, satchel in all_satchels.items():
         satchel.clear_caches()
 
+
 def is_callable(obj, name):
     """
     A version of callable() that doesn't execute properties when doing the test for callability.
     """
     return callable(getattr(obj.__class__, name, None))
+
 
 class Satchel:
     """
@@ -787,10 +805,11 @@ class Satchel:
             if hasattr(task.wrapped, 'is_deployer') or task_name == 'configure':
                 add_deployer(
                     event=self.name,
-                    func=task.wrapped.fabric_name,#deployer.func,
-                    before=getattr(task.wrapped, 'deploy_before', []),#deployer.before,
-                    after=getattr(task.wrapped, 'deploy_after', []),#deployer.after,
-                    takes_diff=getattr(task.wrapped, 'deployer_takes_diff', False))
+                    func=task.wrapped.fabric_name, #deployer.func,
+                    before=getattr(task.wrapped, 'deploy_before', []), #deployer.before,
+                    after=getattr(task.wrapped, 'deploy_after', []), #deployer.after,
+                    takes_diff=getattr(task.wrapped, 'deployer_takes_diff', False)
+                )
 
             # Collect callbacks to run after basic satchel init is complete.
             if hasattr(task.wrapped, 'is_post_callback'):
@@ -800,12 +819,7 @@ class Satchel:
         if deployers:
             for deployer in deployers:
                 assert isinstance(deployer, Deployer), 'Invalid deployer "%s".' % deployer
-                add_deployer(
-                    event=self.name,
-                    func=deployer.func,
-                    before=deployer.before,
-                    after=deployer.after,
-                    takes_diff=deployer.takes_diff)
+                add_deployer(event=self.name, func=deployer.func, before=deployer.before, after=deployer.after, takes_diff=deployer.takes_diff)
 
     def _set_defaults(self):
         """
@@ -832,7 +846,7 @@ class Satchel:
                 os.mkdir(d)
         else:
             if not d.startswith('/'):
-                d = '/home/%s/%s' % (env.user, d)
+                d = f'/home/{env.user}/{d}'
             self.sudo('mkdir -p "{directory}"; chown -R {user}:{user} {directory}'.format(user=env.user, directory=d))
         return d
 
@@ -858,6 +872,7 @@ class Satchel:
         """
         Context manager that hides the command prefix and activates dryrun to capture all following task commands to their equivalent Bash outputs.
         """
+
         class Capture:
 
             def __init__(self, satchel):
@@ -948,7 +963,7 @@ class Satchel:
         """
         Returns an ordered list of all task names.
         """
-        tasks = set(self.tasks)#DEPRECATED
+        tasks = set(self.tasks) #DEPRECATED
         for _name in dir(self):
             # Skip properties so we don't accidentally execute any methods.
             if isinstance(getattr(type(self), _name, None), property):
@@ -1015,11 +1030,11 @@ class Satchel:
         """
         Returns a dictionary of satchels used in the current configuration, excluding ourselves.
         """
-        return dict(
-            (name, satchel)
+        return {
+            name: satchel
             for name, satchel in self.all_satchels.items()
             if name != self.name.upper() and name.lower() in map(str.lower, self.genv.services)
-        )
+        }
 
     def iter_sites(self, *args, **kwargs):
         kwargs.setdefault('verbose', self.verbose)
@@ -1042,7 +1057,7 @@ class Satchel:
         if 'cron' not in self.env:
             self.env.cron = type(env)()
         self.env.cron[name] = type(env)()
-        self.env.cron[name].template = '%s/%s' % (self.name, template)
+        self.env.cron[name].template = f'{self.name}/{template}'
 
         script_path = script_path or ('/etc/cron.d/%s' % name)
         self.env.cron[name].script_path = script_path
@@ -1073,7 +1088,7 @@ class Satchel:
 
         # Must be 600, otherwise gives INSECURE MODE error.
         # http://unix.stackexchange.com/questions/91202/cron-does-not-print-to-syslog
-        r.sudo('chmod %s %s' % (data.perms, data.script_path))#env.put_remote_path)
+        r.sudo(f'chmod {data.perms} {data.script_path}') #env.put_remote_path)
         r.sudo('service cron restart')
 
     def uninstall_cron_job(self, name):
@@ -1100,9 +1115,9 @@ class Satchel:
         Returns a version of env filtered to only include the variables in our namespace.
         """
         _env = type(env)()
-        for _k, _v in six.iteritems(env):
-            if _k.startswith(self.name+'_'):
-                _env[_k[len(self.name)+1:]] = _v
+        for _k, _v in env.items():
+            if _k.startswith(self.name + '_'):
+                _env[_k[len(self.name) + 1:]] = _v
         return _env
 
     @property
@@ -1134,7 +1149,7 @@ class Satchel:
         if self.dryrun:
             cmd = 'sleep %s' % seconds
             if BURLAP_COMMAND_PREFIX:
-                print('%s local: %s' % (render_command_prefix(), cmd))
+                print(f'{render_command_prefix()} local: {cmd}')
             else:
                 print(cmd)
         else:
@@ -1180,10 +1195,10 @@ class Satchel:
             del kwargs['dryrun']
 
         if dryrun:
-            print('%s sudo: %s' % (render_command_prefix(), command))
+            print(f'{render_command_prefix()} sudo: {command}')
         else:
             if is_local():
-                if six.moves.input('reboot localhost now? ').strip()[0].lower() != 'y':
+                if input('reboot localhost now? ').strip()[0].lower() != 'y':
                     return
 
             attempts = int(round(float(wait) / float(timeout)))
@@ -1195,11 +1210,11 @@ class Satchel:
 
             env.host_string = reconnect_hostname
             success = False
-            for attempt in six.moves.range(attempts):
+            for attempt in range(attempts):
 
                 # Try to make sure we don't slip in before pre-reboot lockdown
                 if verbose:
-                    print('Waiting for %s seconds, wait %i of %i' % (timeout, attempt+1, attempts))
+                    print('Waiting for %s seconds, wait %i of %i' % (timeout, attempt + 1, attempts))
                 time.sleep(timeout)
 
                 # This is actually an internal-ish API call, but users can simply drop
@@ -1222,7 +1237,6 @@ class Satchel:
 
             if not success:
                 raise Exception('Reboot failed or took longer than %s seconds.' % wait)
-
 
     def run_as_root(self, command, *args, **kwargs):
         """
@@ -1265,13 +1279,13 @@ class Satchel:
         context = dict(
             key=key,
             value=value,
-            uncommented_literal='%s%s%s' % (key, equals_literal, value), # key=value
-            uncommented_pattern='%s%s%s' % (key, equals_pattern, value), # key = value
-            uncommented_pattern_partial='^%s%s[^\\n]*' % (key, equals_pattern), # key=
-            commented_pattern='%s%s%s%s' % (comment_pattern, key, equals_pattern, value), # #key=value
-            commented_pattern_partial='^%s%s%s[^\\n]*' % (comment_pattern, key, equals_pattern), # #key=
+            uncommented_literal=f'{key}{equals_literal}{value}', # key=value
+            uncommented_pattern=f'{key}{equals_pattern}{value}', # key = value
+            uncommented_pattern_partial=f'^{key}{equals_pattern}[^\\n]*', # key=
+            commented_pattern=f'{comment_pattern}{key}{equals_pattern}{value}', # #key=value
+            commented_pattern_partial=f'^{comment_pattern}{key}{equals_pattern}[^\\n]*', # #key=
             filename=filename,
-            backup=filename+'.bak',
+            backup=filename + '.bak',
             comment_pattern=comment_pattern,
             equals_pattern=equals_pattern,
         )
@@ -1290,7 +1304,7 @@ class Satchel:
         if dryrun:
             for cmd in cmds:
                 if BURLAP_COMMAND_PREFIX:
-                    print('%s %s: %s' % (render_command_prefix(), run_cmd_str, cmd))
+                    print(f'{render_command_prefix()} {run_cmd_str}: {cmd}')
                 else:
                     print(cmd)
         else:
@@ -1323,13 +1337,13 @@ class Satchel:
 
         context = dict(
             key=key,
-            uncommented_literal='%s%s' % (key, equals_literal), # key=value
-            uncommented_pattern='%s%s' % (key, equals_pattern), # key = value
-            uncommented_pattern_partial='^%s%s[^\\n]*' % (key, equals_pattern), # key=
-            commented_pattern='%s%s%s' % (comment_pattern, key, equals_pattern), # #key=value
-            commented_pattern_partial='^%s%s%s[^\\n]*' % (comment_pattern, key, equals_pattern), # #key=
+            uncommented_literal=f'{key}{equals_literal}', # key=value
+            uncommented_pattern=f'{key}{equals_pattern}', # key = value
+            uncommented_pattern_partial=f'^{key}{equals_pattern}[^\\n]*', # key=
+            commented_pattern=f'{comment_pattern}{key}{equals_pattern}', # #key=value
+            commented_pattern_partial=f'^{comment_pattern}{key}{equals_pattern}[^\\n]*', # #key=
             filename=filename,
-            backup=filename+'.bak',
+            backup=filename + '.bak',
             comment_pattern=comment_pattern,
             equals_pattern=equals_pattern,
         )
@@ -1342,7 +1356,7 @@ class Satchel:
         if dryrun:
             for cmd in cmds:
                 if BURLAP_COMMAND_PREFIX:
-                    print('%s %s: %s' % (render_command_prefix(), run_cmd_str, cmd))
+                    print(f'{render_command_prefix()} {run_cmd_str}: {cmd}')
                 else:
                     print(cmd)
         else:
@@ -1411,7 +1425,7 @@ class Satchel:
             curframe = inspect.currentframe()
             calframe = inspect.getouterframes(curframe, 2)
             caller_name = calframe[1][3]
-            prefix = '%s.%s:' % (self.name.lower(), caller_name)
+            prefix = f'{self.name.lower()}.{caller_name}:'
             print(prefix, *args, **kwargs)
 
     def get_package_list(self):
@@ -1425,8 +1439,7 @@ class Satchel:
         # OS: [package1, package2, ...],
         req_packages1 = self.required_system_packages
         if req_packages1:
-            deprecation('The required_system_packages attribute is deprecated, '
-                'use the packager_system_packages property instead.')
+            deprecation('The required_system_packages attribute is deprecated, ' 'use the packager_system_packages property instead.')
 
         # Lookup new package list.
         # OS: [package1, package2, ...],
@@ -1451,7 +1464,7 @@ class Satchel:
                     found = True
                     break
         if not found:
-            print('Warning: No operating system pattern found for %s' % (os_version,))
+            print(f'Warning: No operating system pattern found for {os_version}')
         self.vprint('package_list:', package_list)
         return package_list
 
@@ -1475,7 +1488,7 @@ class Satchel:
 
     def purge_packages(self):
         os_version = self.os_version # OS(type=LINUX, distro=UBUNTU, release='14.04')
-#         print('os_version:', os_version)
+        #         print('os_version:', os_version)
         req_packages = self.required_system_packages
         patterns = [
             (os_version.type, os_version.distro, os_version.release),
@@ -1484,13 +1497,15 @@ class Satchel:
             (os_version.distro,),
             os_version.distro,
         ]
-#         print('req_packages:', req_packages)
+        #         print('req_packages:', req_packages)
         package_list = None
         for pattern in patterns:
-#             print('pattern:', pattern)
+            #             print('pattern:', pattern)
             if pattern in req_packages:
                 package_list = req_packages[pattern]
                 break
+
+
 #         print('package_list:', package_list)
         if package_list:
             package_list_str = ' '.join(package_list)
@@ -1538,20 +1553,22 @@ class Satchel:
         assert fn
 
         if style == 'cat':
-            cmd = 'cat <<EOF > %s\n%s\nEOF' % (fn, content)
+            cmd = f'cat <<EOF > {fn}\n{content}\nEOF'
         elif style == 'echo':
-            cmd = 'echo -e %s > %s' % (shellquote(content), fn)
+            cmd = f'echo -e {shellquote(content)} > {fn}'
         else:
             raise NotImplementedError
 
         if BURLAP_COMMAND_PREFIX:
-            print('%s run: %s' % (render_command_prefix(), cmd))
+            print(f'{render_command_prefix()} run: {cmd}')
         else:
             print(cmd)
 
         return fn
 
+    @task
     def get(self, *args, **kwargs):
+        print('args:', args, kwargs)
         return get_or_dryrun(*args, **kwargs)
 
     def put(self, *args, **kwargs):
@@ -1578,16 +1595,16 @@ class Satchel:
                 real_remote_path = remote_path
 
             if env.host_string in LOCALHOSTS:
-                cmd = 'rsync --progress --verbose %s %s' % (local_path, remote_path)
-                print('%s put: %s' % (render_command_prefix(is_local=True), cmd))
+                cmd = f'rsync --progress --verbose {local_path} {remote_path}'
+                print(f'{render_command_prefix(is_local=True)} put: {cmd}')
                 env.put_remote_path = local_path
             else:
-                cmd = 'rsync --progress --verbose %s %s@%s:%s' % (local_path, env.user, env.host_string, remote_path)
+                cmd = f'rsync --progress --verbose {local_path} {env.user}@{env.host_string}:{remote_path}'
                 env.put_remote_path = remote_path
-                print('%s put: %s' % (render_command_prefix(is_local=True), cmd))
+                print(f'{render_command_prefix(is_local=True)} put: {cmd}')
 
             if real_remote_path and use_sudo:
-                self.sudo('mv %s %s' % (remote_path, real_remote_path))
+                self.sudo(f'mv {remote_path} {real_remote_path}')
                 env.put_remote_path = real_remote_path
 
             return [real_remote_path]
@@ -1616,7 +1633,7 @@ class Satchel:
             # Ignore temporary wrappers and other intermediaries.
             i += 1
             caller_name = calling_frames[i][3]
-        func_name = '%s.%s' % (self.name.lower(), caller_name)
+        func_name = f'{self.name.lower()}.{caller_name}'
         return func_name
 
     @task
@@ -1632,7 +1649,7 @@ class Satchel:
         assert cmd, 'No command specified.'
         if dryrun:
             if BURLAP_COMMAND_PREFIX:
-                print('%s %s: run: %s' % (render_command_prefix(), func_name, cmd))
+                print(f'{render_command_prefix()} {func_name}: run: {cmd}')
             else:
                 print(cmd)
         else:
@@ -1659,7 +1676,7 @@ class Satchel:
         for _site, _data in iter_sites():
             r.env.SITE = _site
             with self.settings(warn_only=True):
-                r.run('export SITE={SITE}; export ROLE={ROLE}; '+cmd)
+                r.run('export SITE={SITE}; export ROLE={ROLE}; ' + cmd)
 
     def append(self, *args, **kwargs):
         return append_or_dryrun(*args, **kwargs)
@@ -1698,7 +1715,7 @@ class Satchel:
             cmd = 'sed -i{backup} -r -e "/{limit}/ s/{before}/{after}/g {filename}"'.format(**context)
             cmd_run = 'sudo' if use_sudo else 'run'
             if BURLAP_COMMAND_PREFIX:
-                print('%s %s: %s' % (render_command_prefix(), cmd_run, cmd))
+                print(f'{render_command_prefix()} {cmd_run}: {cmd}')
             else:
                 print(cmd)
         else:
@@ -1716,22 +1733,22 @@ class Satchel:
         assign_to = kwargs.pop('assign_to', None)
         if assign_to:
             cmd = args[0]
-            cmd = '$%s=`%s`' % (assign_to, cmd)
+            cmd = f'${assign_to}=`{cmd}`'
             args = list(args)
             args[0] = cmd
 
         if dryrun:
             cmd = args[0]
-            print('[%s@localhost] %s: local: %s' % (getpass.getuser(), func_name, cmd))
+            print(f'[{getpass.getuser()}@localhost] {func_name}: local: {cmd}')
         else:
             return local(*args, **kwargs)
 
     def local_if_missing(self, fn, cmd, **kwargs):
-        _cmd = "[ ! -f '%s' ] && %s || true" % (fn, cmd)
+        _cmd = f"[ ! -f '{fn}' ] && {cmd} || true"
         self.local(_cmd, **kwargs)
 
     def local_if_exists(self, fn, cmd, **kwargs):
-        _cmd = "[ -f '%s' ] && %s || true" % (fn, cmd)
+        _cmd = f"[ -f '{fn}' ] && {cmd} || true"
         self.local(_cmd, **kwargs)
 
     @task
@@ -1748,14 +1765,14 @@ class Satchel:
             cmd = args[0]
             if BURLAP_COMMAND_PREFIX:
                 if user:
-                    print('%s %s: run: sudo -u %s bash -c "%s"' % (render_command_prefix(), func_name, user, escape_double_quotes_in_command(cmd)))
+                    print(f'{render_command_prefix()} {func_name}: run: sudo -u {user} bash -c "{escape_double_quotes_in_command(cmd)}"')
                 else:
-                    print('%s %s: run: sudo bash -c "%s"' % (render_command_prefix(), func_name, escape_double_quotes_in_command(cmd)))
+                    print(f'{render_command_prefix()} {func_name}: run: sudo bash -c "{escape_double_quotes_in_command(cmd)}"')
             else:
                 if user:
-                    print('sudo -u %s bash -c "%s"' % (user, escape_double_quotes_in_command(cmd)))
+                    print(f'sudo -u {user} bash -c "{escape_double_quotes_in_command(cmd)}"')
                 else:
-                    print('sudo bash -c "%s"' % (escape_double_quotes_in_command(cmd),))
+                    print(f'sudo bash -c "{escape_double_quotes_in_command(cmd)}"')
         else:
             if ignore_errors:
                 with settings(warn_only=True):
@@ -1769,11 +1786,11 @@ class Satchel:
         return self.sudo(*args, **kwargs)
 
     def sudo_if_missing(self, fn, cmd, **kwargs):
-        _cmd = "[ ! -f '%s' ] && %s || true" % (fn, cmd)
+        _cmd = f"[ ! -f '{fn}' ] && {cmd} || true"
         self.sudo(_cmd, **kwargs)
 
     def sudo_if_exists(self, fn, cmd, **kwargs):
-        _cmd = "[ -f '%s' ] && %s || true" % (fn, cmd)
+        _cmd = f"[ -f '{fn}' ] && {cmd} || true"
         self.sudo(_cmd, **kwargs)
 
     def write_temp_file(self, *args, **kwargs):
@@ -1810,8 +1827,8 @@ class Satchel:
             if template.startswith('%s/' % self.name):
                 fqfn = self.find_template(template)
             else:
-                fqfn = self.find_template('%s/%s' % (self.name, template))
-            assert fqfn, 'Unable to find template: %s/%s' % (self.name, template)
+                fqfn = self.find_template(f'{self.name}/{template}')
+            assert fqfn, f'Unable to find template: {self.name}/{template}'
             manifest['_%s' % template] = get_file_hash(fqfn)
 
         for tracker in self.get_trackers():
@@ -1896,6 +1913,7 @@ class Satchel:
     def dryrun(self, v):
         return set_dryrun(v)
 
+
 class Service:
 
     name = None
@@ -1948,7 +1966,7 @@ class Service:
 
     def get_command(self, action):
         os_version = self.os_version # OS(type=LINUX, distro=UBUNTU, release='14.04')
-#         print('os_version:', os_version)
+        #         print('os_version:', os_version)
         patterns = [
             (os_version.type, os_version.distro, os_version.release),
             (os_version.distro, os_version.release),
@@ -1975,7 +1993,7 @@ class Service:
 
     @task
     def restart(self):
-        s = {'warn_only':True} if self.ignore_errors else {}
+        s = {'warn_only': True} if self.ignore_errors else {}
         restart_cmd = self.get_command(RESTART)
         if restart_cmd:
             with settings(**s):
@@ -1995,7 +2013,7 @@ class Service:
 
     @task
     def start(self):
-        s = {'warn_only':True} if self.ignore_errors else {}
+        s = {'warn_only': True} if self.ignore_errors else {}
         with settings(**s):
             cmd = self.get_command(START)
             self.sudo(cmd)
@@ -2025,6 +2043,7 @@ class Service:
 
 
 class ServiceSatchel(Satchel, Service):
+
     def __init__(self, *args, **kwargs):
         Satchel.__init__(self, *args, **kwargs)
         Service.__init__(self, *args, **kwargs)
@@ -2041,11 +2060,13 @@ class ContainerSatchel(Satchel):
     def configure(self):
         pass
 
+
 def env_hosts_retriever(*args, **kwargs):
     data = {}
     if env.host_hostname:
         data[env.host_hostname] = {}
     return data.items()
+
 
 def str_to_callable(s):
     s = (s or '').strip()
@@ -2055,19 +2076,23 @@ def str_to_callable(s):
     func_name = s.split('.')[-1]
     return getattr(importlib.import_module(module_name), func_name)
 
+
 def get_hosts_retriever(s=None):
     """
     Given the function name, looks up the method for dynamically retrieving host data.
     """
     s = s or env.hosts_retriever
-#     #assert s, 'No hosts retriever specified.'
+    #     #assert s, 'No hosts retriever specified.'
     if not s:
         return env_hosts_retriever
+
+
 #     module_name = '.'.join(s.split('.')[:-1])
 #     func_name = s.split('.')[-1]
 #     retriever = getattr(importlib.import_module(module_name), func_name)
 #     return retriever
     return str_to_callable(s) or env_hosts_retriever
+
 
 def shellquote(s, singleline=True):
     if singleline:
@@ -2077,8 +2102,9 @@ def shellquote(s, singleline=True):
         s = re.sub(r'[\"\']+$', '', s)
         s = '"%s"' % s
     else:
-        s = '{}'.format(pipes.quote(s))
+        s = f'{pipes.quote(s)}'
     return s
+
 
 def set_dryrun(dryrun):
     global _dryrun
@@ -2088,25 +2114,31 @@ def set_dryrun(dryrun):
     else:
         state.output.running = True
 
+
 def get_dryrun(dryrun=None):
     if dryrun is None or dryrun == '':
         return bool(int(_dryrun or 0))
     return bool(int(dryrun or 0))
 
+
 def set_verbose(verbose):
     global _verbose
     _verbose = bool(int(verbose or 0))
+
 
 def get_verbose(verbose=None):
     if verbose is None or verbose == '':
         return bool(int(_verbose or 0))
     return bool(int(verbose or 0))
 
+
 def set_show(v):
     _show_command_output = bool(int(v))
 
+
 def get_show():
     return _show_command_output
+
 
 def render_command_prefix(is_local=False):
     extra = {}
@@ -2118,11 +2150,13 @@ def render_command_prefix(is_local=False):
     if is_local:
         s = '[%s@localhost]' % getpass.getuser()
     else:
-        s = '[%s@%s%s]' % (env.user, env.host_string, extra_s)
+        s = f'[{env.user}@{env.host_string}{extra_s}]'
     return s
 
+
 def print_command(cmd):
-    print('[%s@localhost] local: %s' % (getpass.getuser(), cmd))
+    print(f'[{getpass.getuser()}@localhost] local: {cmd}')
+
 
 def append_or_dryrun(*args, **kwargs):
     """
@@ -2147,10 +2181,10 @@ def append_or_dryrun(*args, **kwargs):
 
     if dryrun:
         text = text.replace('\n', '\\n')
-        cmd = 'echo -e "%s" >> %s' % (text, filename)
+        cmd = f'echo -e "{text}" >> {filename}'
         cmd_run = 'sudo' if use_sudo else 'run'
         if BURLAP_COMMAND_PREFIX:
-            print('%s %s: %s' % (render_command_prefix(), cmd_run, cmd))
+            print(f'{render_command_prefix()} {cmd_run}: {cmd}')
         else:
             print(cmd)
     else:
@@ -2158,24 +2192,25 @@ def append_or_dryrun(*args, **kwargs):
 
 
 def files_exists_or_dryrun(path, *args, **kwargs):
-#     dryrun = get_dryrun(kwargs.get('dryrun'))
-#     if dryrun:
-#         use_sudo = kwargs.get('use_sudo', False)
-#         cmd = '[ -d {path} ] || [ -f {path} ]'.format(path=path)
-#         cmd_run = 'sudo' if use_sudo else 'run'
-#         if BURLAP_COMMAND_PREFIX:
-#             print('%s %s: %s' % (render_command_prefix(), cmd_run, cmd))
-#         else:
-#             print(cmd)
-#         return False
-#     else:
+    #     dryrun = get_dryrun(kwargs.get('dryrun'))
+    #     if dryrun:
+    #         use_sudo = kwargs.get('use_sudo', False)
+    #         cmd = '[ -d {path} ] || [ -f {path} ]'.format(path=path)
+    #         cmd_run = 'sudo' if use_sudo else 'run'
+    #         if BURLAP_COMMAND_PREFIX:
+    #             print('%s %s: %s' % (render_command_prefix(), cmd_run, cmd))
+    #         else:
+    #             print(cmd)
+    #         return False
+    #     else:
     from fabric.contrib.files import exists
     # Expand ~, since this isn't done automatically.
     if path and path.startswith('~'):
-        path = '/home/%s/%s' % (env.user, path[1:])
+        path = f'/home/{env.user}/{path[1:]}'
     if env.host_string in LOCALHOSTS:
         return os.path.exists(path)
     return exists(path, *args, **kwargs)
+
 
 def write_temp_file_or_dryrun(content, *args, **kwargs):
     """
@@ -2186,9 +2221,9 @@ def write_temp_file_or_dryrun(content, *args, **kwargs):
         fd, tmp_fn = tempfile.mkstemp()
         os.remove(tmp_fn)
         cmd_run = 'local'
-        cmd = 'cat <<EOT >> %s\n%s\nEOT' % (tmp_fn, content)
+        cmd = f'cat <<EOT >> {tmp_fn}\n{content}\nEOT'
         if BURLAP_COMMAND_PREFIX:
-            print('%s %s: %s' % (render_command_prefix(), cmd_run, cmd))
+            print(f'{render_command_prefix()} {cmd_run}: {cmd}')
         else:
             print(cmd)
     else:
@@ -2236,30 +2271,33 @@ def rsync_or_dryrun(**kwargs):
     local_path = kwargs.pop('local_path')
     remote_path = kwargs.pop('remote_path')
     #cmd = 'rsync --progress --verbose %s %s@%s:%s' % (local_path, env.user, env.host_string, remote_path)
-    cmd = 'rsync -avz --progress --rsh "ssh -i %s" "%s" %s@%s:"%s"' % (env.key_filename, local_path, env.user, env.host_string, remote_path)
+    cmd = f'rsync -avz --progress --rsh "ssh -i {env.key_filename}" "{local_path}" {env.user}@{env.host_string}:"{remote_path}"'
     if dryrun:
         print(cmd)
     else:
         _local(cmd, **kwargs)
 
 
-def get_or_dryrun(**kwargs):
+def get_or_dryrun(*args, **kwargs):
     dryrun = get_dryrun(kwargs.get('dryrun'))
     use_sudo = kwargs.get('use_sudo', False)
     if 'dryrun' in kwargs:
         del kwargs['dryrun']
     if dryrun:
-        local_path = kwargs['local_path']
-        remote_path = kwargs.get('remote_path', None)
+        if len(args) == 2:
+            local_path, remote_path = args
+        else:
+            local_path = kwargs['local_path']
+            remote_path = kwargs.get('remote_path', None)
         if not local_path:
             local_path = tempfile.mktemp()
         if not local_path.startswith('/'):
             local_path = '/tmp/' + local_path
-        cmd = ('sudo ' if use_sudo else '')+'rsync --progress --verbose %s@%s:%s %s' % (env.user, env.host_string, remote_path, local_path)
-        print('[localhost] get: %s' % (cmd,))
+        cmd = ('sudo ' if use_sudo else '') + f'rsync --progress --verbose {env.user}@{env.host_string}:{remote_path} {local_path}'
+        print(f'[localhost] get: {cmd}')
         env.get_local_path = local_path
     else:
-        return _get(**kwargs)
+        return _get(*args, **kwargs)
 
 
 def _get(*args, **kwargs):
@@ -2276,12 +2314,12 @@ def pretty_bytes(bytes): # pylint: disable=redefined-builtin
     """
     if not bytes:
         return bytes, 'bytes'
-    sign = bytes/float(bytes)
+    sign = bytes / float(bytes)
     bytes = abs(bytes)
     for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
         if bytes < 1024.0:
             #return "%3.1f %s" % (bytes, x)
-            return sign*bytes, x
+            return sign * bytes, x
         bytes /= 1024.0
 
 
@@ -2297,7 +2335,7 @@ def get_component_settings(prefixes=None):
         name = name.lower().strip()
         for k in sorted(env):
             if k.startswith('%s_' % name):
-                new_k = k[len(name)+1:]
+                new_k = k[len(name) + 1:]
                 data[new_k] = env[k]
     return data
 
@@ -2307,14 +2345,14 @@ def get_last_modified_timestamp(path, ignore=None):
     Recursively finds the most recent timestamp in the given directory.
     """
     ignore = ignore or []
-    if not isinstance(path, six.string_types):
+    if not isinstance(path, str):
         return
     ignore_str = ''
     if ignore:
         assert isinstance(ignore, (tuple, list))
         ignore_str = ' '.join("! -name '%s'" % _ for _ in ignore)
-    cmd = 'find "'+path+'" ' + ignore_str + ' -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -f 1 -d " "'
-         #'find '+path+' -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d " " -f1
+    cmd = 'find "' + path + '" ' + ignore_str + ' -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -f 1 -d " "'
+    #'find '+path+' -type f -printf "%T@ %p\n" | sort -n | tail -1 | cut -d " " -f1
     ret = subprocess.check_output(cmd, shell=True)
     # Note, we round now to avoid rounding errors later on where some formatters
     # use different decimal contexts.
@@ -2336,7 +2374,7 @@ def check_settings_for_differences(old, new, as_bool=False, as_tri=False):
     old = old or {}
     new = new or {}
 
-    changes = set(k for k in set(new.iterkeys()).intersection(old.iterkeys()) if new[k] != old[k])
+    changes = {k for k in set(new.iterkeys()).intersection(old.iterkeys()) if new[k] != old[k]}
     if changes and as_bool:
         return True
 
@@ -2362,17 +2400,21 @@ def check_settings_for_differences(old, new, as_bool=False, as_tri=False):
 
 def get_subpackages(module):
     dr = os.path.dirname(module.__file__)
+
     def is_package(d):
         d = os.path.join(dr, d)
         return os.path.isdir(d) and glob.glob(os.path.join(d, '__init__.py*'))
+
     return filter(is_package, os.listdir(dr))
 
 
 def get_submodules(module):
     dr = os.path.dirname(module.__file__)
+
     def is_module(d):
         d = os.path.join(dr, d)
         return os.path.isfile(d) and glob.glob(os.path.join(d, '*.py*'))
+
     return filter(is_module, os.listdir(dr))
 
 
@@ -2391,7 +2433,7 @@ def get_app_package(name):
     arch = importlib.import_module('arch')
     settings = importlib.import_module('arch.settings')
     INSTALLED_APPS = set(settings.INSTALLED_APPS)
-    assert name in INSTALLED_APPS, 'Unknown or uninstalled app: %s' % (name,)
+    assert name in INSTALLED_APPS, f'Unknown or uninstalled app: {name}'
     return importlib.import_module('arch.%s' % name)
 
 
@@ -2399,12 +2441,13 @@ def to_dict(obj):
     if isinstance(obj, (tuple, list)):
         return [to_dict(_) for _ in obj]
     if isinstance(obj, dict):
-        return dict((to_dict(k), to_dict(v)) for k, v in six.iteritems(obj))
-    if isinstance(obj, (int, bool, float, six.string_types)):
+        return {to_dict(k): to_dict(v) for k, v in obj.items()}
+    if isinstance(obj, (int, bool, float, (str,))):
         return obj
     if hasattr(obj, 'to_dict'):
         return obj.to_dict()
-    raise Exception('Unknown type: %s %s' % (obj, type(obj)))
+    raise Exception(f'Unknown type: {obj} {type(obj)}')
+
 
 class QueuedCommand:
     """
@@ -2437,14 +2480,14 @@ class QueuedCommand:
 
     def __repr__(self):
         kwargs = list(map(str, self.args))
-        for k, v in six.iteritems(self.kwargs):
+        for k, v in self.kwargs.items():
             if isinstance(v, bool):
                 kwargs.append('%s=%i' % (k, int(v)))
-            elif isinstance(v, six.string_types) and '=' in v:
+            elif isinstance(v, str) and '=' in v:
                 # Escape equals sign character in parameter values.
-                kwargs.append('%s="%s"' % (k, v.replace('=', r'\=')))
+                kwargs.append('{}="{}"'.format(k, v.replace('=', r'\=')))
             else:
-                kwargs.append('%s=%s' % (k, v))
+                kwargs.append(f'{k}={v}')
         params = (self.name, ','.join(kwargs))
         if params[1]:
             return ('%s:%s' % params).strip()
@@ -2512,11 +2555,13 @@ def get_template_dirs():
         yield os.path.join(*path)
     #env.template_dirs = get_template_dirs()
 
+
 #env.template_dirs = get_template_dirs()
+
 
 def save_env():
     env_default = {}
-    for k, v in six.iteritems(env):
+    for k, v in env.items():
         if k.startswith('_'):
             continue
         if isinstance(v, (types.GeneratorType, types.ModuleType)):
@@ -2524,11 +2569,13 @@ def save_env():
         env_default[k] = copy.deepcopy(v)
     return env_default
 
+
 try:
     from django.conf import settings as _settings
     _settings.configure(TEMPLATE_DIRS=get_template_dirs())
 except (ImportError, RuntimeError):
     warnings.warn('Unable to import Django settings.', ImportWarning)
+
 
 def _put(**kwargs):
     local_path = kwargs['local_path']
@@ -2540,15 +2587,18 @@ def _put(**kwargs):
     env.put_remote_path = kwargs['remote_path']
     return __put(**kwargs)
 
+
 def get_rc(k):
     if '_rc' in env:
         return env._rc.get(env[ROLE], type(env)()).get(k)
+
 
 def set_rc(k, v):
     if '_rc' not in env:
         env._rc = type(env)()
     env._rc.setdefault(env[ROLE], type(env)())
     env._rc[env[ROLE]][k] = v
+
 
 def get_packager():
     """
@@ -2584,12 +2634,14 @@ def get_packager():
     set_rc('common_packager', common_packager)
     return common_packager
 
+
 def _run_or_local(cmd):
     if env.host_string in LOCALHOSTS:
         ret = _local(cmd, capture=True)
     else:
         ret = _run(cmd)
     return ret
+
 
 def get_os_version():
     """
@@ -2609,26 +2661,18 @@ def get_os_version():
 
             ret = _run_or_local('cat /etc/lsb-release')
             if ret.succeeded:
-                return OS(
-                    type=LINUX,
-                    distro=UBUNTU,
-                    release=re.findall(r'DISTRIB_RELEASE=([0-9\.]+)', ret)[0])
+                return OS(type=LINUX, distro=UBUNTU, release=re.findall(r'DISTRIB_RELEASE=([0-9\.]+)', ret)[0])
 
             ret = _run_or_local('cat /etc/debian_version')
             if ret.succeeded:
-                return OS(
-                    type=LINUX,
-                    distro=DEBIAN,
-                    release=re.findall(r'([0-9\.]+)', ret)[0])
+                return OS(type=LINUX, distro=DEBIAN, release=re.findall(r'([0-9\.]+)', ret)[0])
 
             ret = _run_or_local('cat /etc/fedora-release')
             if ret.succeeded:
-                return OS(
-                    type=LINUX,
-                    distro=FEDORA,
-                    release=re.findall(r'release ([0-9]+)', ret)[0])
+                return OS(type=LINUX, distro=FEDORA, release=re.findall(r'release ([0-9]+)', ret)[0])
 
             raise Exception('Unable to determine OS version.')
+
 
 def find_template(template):
     verbose = get_verbose()
@@ -2637,27 +2681,29 @@ def find_template(template):
         fqfn = os.path.abspath(template)
         if os.path.isfile(fqfn):
             if verbose:
-                print('Using template: %s' % (fqfn,))
+                print(f'Using template: {fqfn}')
             final_fqfn = fqfn
     else:
         for path in get_template_dirs():
             if verbose:
-                print('Checking "%s" for "%s"...' % (path, template))
+                print(f'Checking "{path}" for "{template}"...')
             fqfn = os.path.abspath(os.path.join(path, template))
             if os.path.isfile(fqfn):
                 if verbose:
-                    print('Using template: %s' % (fqfn,))
+                    print(f'Using template: {fqfn}')
                 final_fqfn = fqfn
                 break
 
     if not final_fqfn:
-        raise IOError('Template not found: %s' % template)
+        raise OSError('Template not found: %s' % template)
 
     return final_fqfn
+
 
 def get_template_contents(template):
     final_fqfn = find_template(template)
     return open(final_fqfn).read()
+
 
 def render_to_string(template, extra=None):
     """
@@ -2667,7 +2713,7 @@ def render_to_string(template, extra=None):
     extra = extra or {}
     final_fqfn = find_template(template)
     assert final_fqfn, 'Template not found: %s' % template
-    template_content = open(final_fqfn, 'r').read()
+    template_content = open(final_fqfn).read()
     t = Template(template_content)
     if extra:
         context = env.copy()
@@ -2687,9 +2733,9 @@ def write_to_file(content, fn=None, **kwargs):
         fd, fn = tempfile.mkstemp()
 
     if dryrun:
-        cmd = 'echo -e %s > %s' % (shellquote(content), fn)
+        cmd = f'echo -e {shellquote(content)} > {fn}'
         if BURLAP_COMMAND_PREFIX:
-            print('%s local: %s' % (render_command_prefix(is_local=True), cmd))
+            print(f'{render_command_prefix(is_local=True)} local: {cmd}')
         else:
             print(cmd)
     else:
@@ -2701,10 +2747,12 @@ def write_to_file(content, fn=None, **kwargs):
                 fout.write(content)
     return fn
 
+
 def set_site(site):
     if site is None:
         return
     env[SITE] = os.environ[SITE] = site
+
 
 def set_role(role):
     if role is None:
@@ -2756,7 +2804,7 @@ def iter_sites(sites=None, site=None, renderer=None, setter=None, no_secure=Fals
     if sites is None:
         site = site or env.SITE or ALL
         if site == ALL:
-            sites = list(six.iteritems(env.sites))
+            sites = list(env.sites.items())
         else:
             sys.stderr.flush()
             sites = [(site, env.sites.get(site))]
@@ -2798,11 +2846,13 @@ def iter_sites(sites=None, site=None, renderer=None, setter=None, no_secure=Fals
             continue
         del env[key]
 
+
 def pc(*args):
     """
     Print comment.
     """
     print('echo "%s"' % ' '.join(map(str, args)))
+
 
 def get_current_hostname():
     key = '_ip_to_hostname'
@@ -2822,6 +2872,7 @@ def get_current_hostname():
 
     return env[key][env.host_string]
 
+
 #http://stackoverflow.com/questions/11557241/python-sorting-a-dependency-list
 def topological_sort(source):
     """perform topo sort on elements.
@@ -2831,7 +2882,7 @@ def topological_sort(source):
     """
     if isinstance(source, dict):
         source = source.items()
-    pending = sorted([(name, set(deps)) for name, deps in source]) # copy deps so we can modify set in-place
+    pending = sorted((name, set(deps)) for name, deps in source) # copy deps so we can modify set in-place
     emitted = []
     while pending:
         next_pending = []
@@ -2846,9 +2897,10 @@ def topological_sort(source):
                 emitted.append(name) # <-- not required, but helps preserve original ordering
                 next_emitted.append(name) # remember what we emitted for difference_update() in next pass
         if not next_emitted: # all entries have unmet deps, one of two things is wrong...
-            raise ValueError("cyclic or missing dependancy detected: %r" % (next_pending,))
+            raise ValueError(f"cyclic or missing dependancy detected: {next_pending!r}")
         pending = next_pending
         emitted = next_emitted
+
 
 def represent_ordereddict(dumper, data):
     value = []
@@ -2859,7 +2911,8 @@ def represent_ordereddict(dumper, data):
 
         value.append((node_key, node_value))
 
-    return yaml.nodes.MappingNode(u'tag:yaml.org,2002:map', value)
+    return yaml.nodes.MappingNode('tag:yaml.org,2002:map', value)
+
 
 yaml.add_representer(OrderedDict, represent_ordereddict)
 
@@ -2867,14 +2920,16 @@ yaml.add_representer(OrderedDict, represent_ordereddict)
 
 shelf = Shelf()
 
+
 def get_host_ip(hostname):
     #TODO:use generic host retriever?
     from burlap.vm import list_instances
     data = list_instances(show=0, verbose=0)
-    for key, attrs in six.iteritems(data):
-#         print('key:',key,attrs)
+    for key, attrs in data.items():
+        #         print('key:',key,attrs)
         if key == hostname:
             return attrs.get('ip')
+
 
 def only_hostname(s):
     """
@@ -2884,26 +2939,30 @@ def only_hostname(s):
     """
     return s.split('@')[-1].split(':')[0].strip()
 
+
 def get_hosts_for_site(site=None):
     """
     Returns a list of hosts that have been configured to support the given site.
     """
     site = site or env.SITE
     hosts = set()
-    for hostname, _sites in six.iteritems(env.available_sites_by_host):
-#         print('checking hostname:',hostname, _sites)
+    for hostname, _sites in env.available_sites_by_host.items():
+        #         print('checking hostname:',hostname, _sites)
         for _site in _sites:
             if _site == site:
-#                 print( '_site:',_site)
+                #                 print( '_site:',_site)
                 host_ip = get_host_ip(hostname)
-#                 print( 'host_ip:',host_ip)
+                #                 print( 'host_ip:',host_ip)
                 if host_ip:
                     hosts.add(host_ip)
                     break
     return list(hosts)
 
+
 def getoutput(cmd):
     return subprocess.check_output(cmd, shell=True)
+
+
 #     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
 #     out, err = process.communicate()
 #     return out

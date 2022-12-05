@@ -24,21 +24,21 @@ try:
 
     # Force dictionaries to be serialized in multi-line format.
     def _represent_dictorder(self, data):
-        return self.represent_mapping(u'tag:yaml.org,2002:map', data.items())
+        return self.represent_mapping('tag:yaml.org,2002:map', data.items())
 
     def _represent_tuple(self, data):
-        return self.represent_sequence(u'tag:yaml.org,2002:seq', data)
+        return self.represent_sequence('tag:yaml.org,2002:seq', data)
 
     def _construct_tuple(self, node):
         return tuple(self.construct_sequence(node))
 
     def _represent_function(self, data):
-        return self.represent_scalar(u'tag:yaml.org,2002:null', u'null')
+        return self.represent_scalar('tag:yaml.org,2002:null', 'null')
 
     yaml.add_representer(type(env), _represent_dictorder)
     yaml.add_representer(_AliasDict, _represent_dictorder)
     #yaml.add_representer(tuple, _represent_tuple) # we need tuples for hash keys
-    yaml.add_constructor(u'tag:yaml.org,2002:python/tuple', _construct_tuple)
+    yaml.add_constructor('tag:yaml.org,2002:python/tuple', _construct_tuple)
     yaml.add_representer(types.FunctionType, _represent_function)
 
 except ImportError as e:
@@ -67,7 +67,7 @@ except (ImportError, NameError) as e:
     print('Unable to initialize debug: %s' % e, file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 102)
+VERSION = (0, 9, 103)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
@@ -85,6 +85,7 @@ logger.addHandler(handler)
 
 # Silence INFO-level Paramiko noise.
 logging.getLogger("paramiko").setLevel(logging.WARNING)
+
 
 def _get_environ_handler(name, d):
     """
@@ -104,7 +105,7 @@ def _get_environ_handler(name, d):
             print('#!/bin/bash')
             print('# DO NOT EDIT. AUTO-GENERATED WITH:')
             print('#')
-            print('#     BURLAP_SHELL_PREFIX=1 BURLAP_COMMAND_PREFIX=0 fab %s' % (' '.join(sys.argv[1:]),))
+            print('#     BURLAP_SHELL_PREFIX=1 BURLAP_COMMAND_PREFIX=0 fab {}'.format(' '.join(sys.argv[1:])))
             print('#')
 
         BURLAP_COMMAND_PREFIX = int(os.environ.get('BURLAP_COMMAND_PREFIX', '1'))
@@ -167,7 +168,7 @@ def _get_environ_handler(name, d):
             hostname = translator(hostname=hostname)
             _hosts = env.hosts
             env.hosts = [_ for _ in env.hosts if _ == hostname]
-            assert env.hosts, 'Hostname %s does not match any known hosts.' % (_hostname,)
+            assert env.hosts, f'Hostname {_hostname} does not match any known hosts.'
 
         if env.is_local is None:
             if env.hosts:
@@ -185,11 +186,12 @@ def _get_environ_handler(name, d):
             env.host_string = env.hosts[0]
 
         if verbose:
-            print('Loaded role %s.' % (name,), file=sys.stderr)
+            print(f'Loaded role {name}.', file=sys.stderr)
 
-    func.__doc__ = 'Sets enivronment variables for the "%s" role.' % (name,)
+    func.__doc__ = f'Sets enivronment variables for the "{name}" role.'
     func.role = name
     return func
+
 
 def update_merge(d, u):
     """
@@ -201,12 +203,13 @@ def update_merge(d, u):
     http://stackoverflow.com/questions/3232943/update-value-of-a-nested-dictionary-of-varying-depth
     """
     for k, v in u.items():
-        if isinstance(v, collections.Mapping):
+        if isinstance(v, collections.abc.Mapping):
             r = update_merge(d.get(k, dict()), v)
             d[k] = r
         else:
             d[k] = u[k]
     return d
+
 
 def find_yaml_settings_fn(name, local=False, fn='settings.yaml'):
     # If name is a valid path, then use that.
@@ -221,6 +224,7 @@ def find_yaml_settings_fn(name, local=False, fn='settings.yaml'):
     if os.path.isfile(settings_fn):
         return settings_fn
 
+
 def load_yaml_settings(name, priors=None, verbose=0):
     verbose = int(verbose)
     config = type(env)()
@@ -232,7 +236,7 @@ def load_yaml_settings(name, priors=None, verbose=0):
 
     settings_fn = find_yaml_settings_fn(name)
     if not settings_fn:
-        warnings.warn('Warning: Could not find Yaml settings for role %s.' % (name,))
+        warnings.warn(f'Warning: Could not find Yaml settings for role {name}.')
         return config
     if verbose:
         print('Loading settings:', settings_fn)
@@ -241,10 +245,7 @@ def load_yaml_settings(name, priors=None, verbose=0):
     if 'inherits' in config:
         parent_name = config['inherits']
         del config['inherits']
-        parent_config = load_yaml_settings(
-            parent_name,
-            priors=priors,
-            verbose=verbose)
+        parent_config = load_yaml_settings(parent_name, priors=priors, verbose=verbose)
         parent_config.update(config)
         config = parent_config
 
@@ -283,14 +284,15 @@ def load_yaml_settings(name, priors=None, verbose=0):
 
     return config
 
+
 try:
+
     @task
     @runs_once
     def shell(*args, **kwargs):
         return debug.debug.shell(*args, **kwargs)
 except NameError:
     pass
-
 
 CHECK_VERSION = int(os.environ.get('BURLAP_CHECK_VERSION', '1'))
 
@@ -308,7 +310,7 @@ def check_version():
     CHECK_VERSION = 0
     # Lookup most recent remote version.
     try:
-        from six.moves.urllib.request import urlopen # pylint: disable=import-outside-toplevel
+        from urllib.request import urlopen # pylint: disable=import-outside-toplevel
     except ImportError:
         # The only reason this would fail is if it's being run during the initial setup.py install, when dependencies haven't all been installed yet.
         return
@@ -322,13 +324,14 @@ def check_version():
         # Display warning.
         if remote_release > local_release:
             print('\033[93m')
-            print("You are using burlap version %s, however version %s is available." % (local_release_str, remote_release_str))
+            print(f"You are using burlap version {local_release_str}, however version {remote_release_str} is available.")
             print("You should consider upgrading via the 'pip install --upgrade burlap' command.")
             print('\033[0m')
     except Exception as exc:
         print('\033[93m')
         print("Unable to check for updated burlap version: %s" % exc)
         print('\033[0m')
+
 
 check_version()
 
@@ -382,11 +385,13 @@ def populate_fabfile():
     finally:
         del stack
 
+
 def load_role_handler(name):
     _config = load_yaml_settings(name)
     _f = _get_environ_handler(name, _config)
     _f = WrappedCallableTask(_f, name=name)
     return _f
+
 
 # Dynamically create a Fabric task for each role.
 role_commands = {}
@@ -398,7 +403,7 @@ if common and not no_load:
                 continue
             _f = load_role_handler(_name)
             _var_name = 'role_' + _name
-            _cmd = "%s = _f" % (_var_name,)
+            _cmd = f"{_var_name} = _f"
             exec(_cmd) # pylint: disable=exec-used
             role_commands[_var_name] = _f
 
@@ -406,7 +411,7 @@ if common and not no_load:
     sub_modules = {}
     sub_modules['common'] = common
     __all__ = []
-    for loader, module_name, is_pkg in  pkgutil.walk_packages(__path__):
+    for loader, module_name, is_pkg in pkgutil.walk_packages(__path__):
         if module_name in locals():
             continue
         if module_name.startswith('tests'):
