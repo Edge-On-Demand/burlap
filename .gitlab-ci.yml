@@ -30,10 +30,10 @@ before_script:
   #- apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
   - python -V
   - python3.9 -m pip --version
-  - pip3 install --upgrade setuptools
-  - pip3 install --upgrade pip
-  - pip3 install --upgrade distlib
-  - python3.9 -m pip install -r requirements-test.txt
+  #- pip3 install --upgrade setuptools
+  #- pip3 install --upgrade pip
+  #- pip3 install --upgrade distlib
+  #- python3.9 -m pip install -r requirements-test.txt
 
   # Allow us to SSH passwordless to localhost
   - ssh-keygen -f ~/.ssh/id_rsa -N ""
