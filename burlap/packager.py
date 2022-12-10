@@ -1,12 +1,14 @@
 import os
+import logging
 import tempfile
 from pprint import pprint
-
-import six
 
 from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
+
+logger = logging.getLogger(__name__)
+
 
 class PackagerSatchel(Satchel):
 
@@ -47,7 +49,7 @@ class PackagerSatchel(Satchel):
         elif packager == YUM:
             self.sudo('yum update')
         else:
-            raise Exception('Unknown packager: %s' % (packager,))
+            raise Exception(f'Unknown packager: {packager}')
 
     @task
     def install_apt(self, fn=None, package_name=None, update=0, list_only=0):
@@ -56,16 +58,40 @@ class PackagerSatchel(Satchel):
         """
         r = self.local_renderer
         assert self.genv[ROLE]
-        apt_req_fqfn = fn or (self.env.apt_requirments_fn and self.find_template(self.env.apt_requirments_fn))
-        if not apt_req_fqfn:
+
+        # Lookup initial requirements file.
+        _apt_req_fqfn = fn or (self.env.apt_requirments_fn and self.find_template(self.env.apt_requirments_fn))
+        if not _apt_req_fqfn:
             return []
-        assert os.path.isfile(apt_req_fqfn)
+        assert os.path.isfile(_apt_req_fqfn)
+
+        pending_files = [_apt_req_fqfn]
+        prior_files = set()
 
         lines = list(self.env.apt_packages or [])
-        for _ in open(apt_req_fqfn).readlines():
-            if _.strip() and not _.strip().startswith('#') \
-            and (not package_name or _.strip() == package_name):
-                lines.extend(_pkg.strip() for _pkg in _.split(' ') if _pkg.strip())
+        while pending_files:
+            apt_fqfn = pending_files.pop(0)
+            if apt_fqfn in prior_files:
+                continue
+            prior_files.add(apt_fqfn)
+            logger.info('Processing apt requirements file: %s', apt_fqfn)
+            with open(apt_fqfn) as fin:
+                for line in fin.readlines():
+                    line = line.strip()
+
+                    # Ignore empty lines.
+                    if not line:
+                        continue
+
+                    # Support file inheritance.
+                    if line.startswith('#') and 'inherits:' in line:
+                        next_role = line.split('inherits:')[-1].strip()
+                        pending_files.append(f'roles/{next_role}/{os.path.split(apt_fqfn)[-1]}')
+                        continue
+
+                    if line.strip() and not line.strip().startswith('#') \
+                    and (not package_name or line.strip() == package_name):
+                        lines.extend(_pkg.strip() for _pkg in line.split(' ') if _pkg.strip())
 
         if list_only:
             return lines
@@ -92,9 +118,9 @@ class PackagerSatchel(Satchel):
         update = int(update)
         if list_only:
             return [
-                _.strip() for _ in open(yum_req_fn).readlines()
-                if _.strip() and not _.strip.startswith('#')
-                and (not package_name or _.strip() == package_name)
+                _.strip()
+                for _ in open(yum_req_fn).readlines()
+                if _.strip() and not _.strip.startswith('#') and (not package_name or _.strip() == package_name)
             ]
         if update:
             self.sudo('yum update --assumeyes')
@@ -119,7 +145,7 @@ class PackagerSatchel(Satchel):
             return self.install_apt(*args, **kwargs)
         if packager == YUM:
             return self.install_yum(*args, **kwargs)
-        raise NotImplementedError('Unknown packager: %s' % (packager,))
+        raise NotImplementedError(f'Unknown packager: {packager}')
 
     @task
     def autoclean(self):
@@ -128,7 +154,7 @@ class PackagerSatchel(Satchel):
         if packager == APT:
             r.sudo('DEBIAN_FRONTEND=noninteractive apt-get -yq autoclean')
         else:
-            raise NotImplementedError('Unknown packager: %s' % (packager,))
+            raise NotImplementedError(f'Unknown packager: {packager}')
 
     @task
     def kill_apt_get(self):
@@ -149,7 +175,7 @@ class PackagerSatchel(Satchel):
             raise NotImplementedError
             #return upgrade_yum(*args, **kwargs)
         else:
-            raise Exception('Unknown packager: %s' % (packager,))
+            raise Exception(f'Unknown packager: {packager}')
 
     @task
     def upgrade(self, full=0):
@@ -166,7 +192,7 @@ class PackagerSatchel(Satchel):
         elif packager == YUM:
             raise NotImplementedError
         else:
-            raise Exception('Unknown packager: %s' % (packager,))
+            raise Exception(f'Unknown packager: {packager}')
 
     @task
     def get_repositories(self, typ=None, service=None):
@@ -174,7 +200,7 @@ class PackagerSatchel(Satchel):
         service = (service or '').strip().upper()
         typ = (typ or '').lower().strip()
         assert not typ or typ in PACKAGE_TYPES, \
-            'Unknown package type: %s' % (typ,)
+            f'Unknown package type: {typ}'
 
         repositories = {} # {typ: [repos]}
 
@@ -190,7 +216,7 @@ class PackagerSatchel(Satchel):
                         'Invalid repo list for satchel %s.' % satchel_name
                     for _name in repo_lst:
                         # Can be string (for APT) or tuple of strings (for APT SOURCE)
-                        if isinstance(_name, six.string_types):
+                        if isinstance(_name, str):
                             _name = _name.strip()
                             assert _name, 'Invalid repo name for satchel %s.' % satchel_name
                     repositories.setdefault(repo_type, [])
@@ -225,7 +251,7 @@ class PackagerSatchel(Satchel):
                 r.env.apt_key_value = key_value
                 r.sudo("apt-key adv --keyserver {apt_key_server} --recv-key {apt_key_value}")
             else:
-                assert isinstance(parts, six.string_types)
+                assert isinstance(parts, str)
                 r.env.apt_key_url = parts
                 r.sudo('wget {apt_key_url} -O - | apt-key add -')
 
@@ -255,7 +281,7 @@ class PackagerSatchel(Satchel):
         )
         service = (service or '').strip().upper()
         type = (type or '').lower().strip()
-        assert not type or type in PACKAGE_TYPES, 'Unknown package type: %s' % (type,)
+        assert not type or type in PACKAGE_TYPES, f'Unknown package type: {type}'
         packages_set = set()
         packages = []
         version = self.os_version
@@ -271,8 +297,7 @@ class PackagerSatchel(Satchel):
             if not type or type == SYSTEM:
 
                 #TODO:deprecated, remove
-                _new.extend(required_system_packages.get(
-                    _service, {}).get((version.distro, version.release), []))
+                _new.extend(required_system_packages.get(_service, {}).get((version.distro, version.release), []))
 
                 try:
                     _pkgs = satchel.packager_system_packages
@@ -293,8 +318,7 @@ class PackagerSatchel(Satchel):
             if not type or type == PYTHON:
 
                 #TODO:deprecated, remove
-                _new.extend(required_python_packages.get(
-                    _service, {}).get((version.distro, version.release), []))
+                _new.extend(required_python_packages.get(_service, {}).get((version.distro, version.release), []))
 
                 try:
                     _pkgs = satchel.packager_python_packages
@@ -308,8 +332,7 @@ class PackagerSatchel(Satchel):
             if not type or type == RUBY:
 
                 #TODO:deprecated, remove
-                _new.extend(required_ruby_packages.get(
-                    _service, {}).get((version.distro, version.release), []))
+                _new.extend(required_ruby_packages.get(_service, {}).get((version.distro, version.release), []))
 
             for _ in _new:
                 if _ in packages_set:
@@ -340,12 +363,12 @@ class PackagerSatchel(Satchel):
         r = self.local_renderer
         packager = self.packager
         if packager == APT:
-            r.env.locale_string = ' '.join('%s=%s' % (_k, _v) for _k, _v in locale_dict.items())
+            r.env.locale_string = ' '.join(f'{_k}={_v}' for _k, _v in locale_dict.items())
             r.sudo('update-locale {locale_string}')
         elif packager == YUM:
             raise NotImplementedError
         else:
-            raise Exception('Unknown packager: %s' % (packager,))
+            raise Exception(f'Unknown packager: {packager}')
 
     @task
     def install_required_system(self):
@@ -359,7 +382,7 @@ class PackagerSatchel(Satchel):
         r = self.local_renderer
         list_only = int(list_only)
         type = (type or '').lower().strip()
-        assert not type or type in PACKAGE_TYPES, 'Unknown package type: %s' % (type,)
+        assert not type or type in PACKAGE_TYPES, f'Unknown package type: {type}'
         lst = []
         if type:
             types = [type]
@@ -397,7 +420,6 @@ class PackagerSatchel(Satchel):
         else:
             raise NotImplementedError('Unknown family: %s' % family)
 
-
     @task(precursors=['user', 'ubuntumultiverse', 'locales'])
     def configure(self, **kwargs):
 
@@ -426,6 +448,7 @@ class PackagerSatchel(Satchel):
         self.install_custom(**kwargs)
         self.uninstall_blacklisted()
 
+
 class UbuntuMultiverseSatchel(Satchel):
 
     name = 'ubuntumultiverse'
@@ -442,6 +465,7 @@ class UbuntuMultiverseSatchel(Satchel):
             # Disable the multiverse.
             r.sudo('sed -i "/^# // s/^# deb.*multiverse/" /etc/apt/sources.list')
             r.sudo('DEBIAN_FRONTEND=noninteractive apt-get -yq update')
+
 
 packager = PackagerSatchel()
 umv = UbuntuMultiverseSatchel()
