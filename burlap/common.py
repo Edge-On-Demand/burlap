@@ -562,9 +562,16 @@ class Renderer:
         self._set_default = set_default
 
     def format(self, s, **kwargs):
+        """
+        Takes a string and replaces any variables in it with values defined in the environment namespace.
+        """
         return format(s, lenv=self.lenv, genv=self.genv, prefix=self.obj.name.lower(), **kwargs)
 
     def render_to_string(self, *args, **kwargs):
+        """
+        Takes a string representing a path to a template, retrieves the template's contents, and replaces
+        any variables in it with values defined in the environment namespace.
+        """
         format = kwargs.pop('format', True)
         kwargs['extra'] = self.collect_genv(include_local=True, include_global=False)
         s = self.obj.render_to_string(*args, **kwargs)
