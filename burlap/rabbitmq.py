@@ -202,8 +202,8 @@ class RabbitMQSatchel(ServiceSatchel):
 
         text = """
             ## Consumer timeout
-            ## If a message delivered to a consumer has not been acknowledge before this timer
-            ## triggers the channel will be force closed by the broker. This ensure that
+            ## If a message delivered to a consumer has not been acknowledged before this timer
+            ## triggers, the channel will be force closed by the broker. This ensure that
             ## faulty consumers that never ack will not hold on to messages indefinitely.
             consumer_timeout = 86400000  # 1 day in milliseconds.
         """
