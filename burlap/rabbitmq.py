@@ -6,6 +6,7 @@ https://www.rabbitmq.com/
 
 """
 import sys
+from textwrap import dedent
 
 from fabric.api import settings
 
@@ -15,6 +16,7 @@ from burlap.decorators import task
 
 DJANGO = 'django'
 LOCAL = 'local'
+
 
 class RabbitMQSatchel(ServiceSatchel):
 
@@ -189,11 +191,34 @@ class RabbitMQSatchel(ServiceSatchel):
         print('\n    http://%s:15672/' % self.genv.host_string)
 
     @task
+    def create_rabbitmq_conf(self):
+        # Delete the old pre-RabbitMQ 3.7 config file.
+        if self.file_exists('/etc/rabbitmq/rabbitmq.config'):
+            self.sudo('rm /etc/rabbitmq/rabbitmq.config')
+        # Re-create the new RabbitMQ 3.7 config file.
+        if self.file_exists('/etc/rabbitmq/rabbitmq.conf'):
+            self.sudo('rm /etc/rabbitmq/rabbitmq.conf')
+        self.sudo('touch /etc/rabbitmq/rabbitmq.conf')
+
+        text = """
+            ## Consumer timeout
+            ## If a message delivered to a consumer has not been acknowledge before this timer
+            ## triggers the channel will be force closed by the broker. This ensure that
+            ## faulty consumers that never ack will not hold on to messages indefinitely.
+            consumer_timeout = 86400000  # 1 day in milliseconds.
+        """
+        self.append(filename='/etc/rabbitmq/rabbitmq.conf', text=dedent(text), use_sudo=True)
+        with self.settings(warn_only=True):
+            self.sudo('service rabbitmq-server restart; sleep 3;')
+
+    @task
     def set_loopback_users(self):
         # This allows guest to login through the management interface.
-        self.sudo('touch /etc/rabbitmq/rabbitmq.config')
-        #self.sudo("echo '[{rabbit, [{loopback_users, []}]}].' >> /etc/rabbitmq/rabbitmq.config")
-        self.append(filename='/etc/rabbitmq/rabbitmq.config', text='[{rabbit, [{loopback_users, []}]}].', use_sudo=True)
+        text = """
+            ## Allow access to the "guest" user from anywhere on the network.
+            loopback_users.guest = false
+        """
+        self.append(filename='/etc/rabbitmq/rabbitmq.conf', text=dedent(text), use_sudo=True)
         with self.settings(warn_only=True):
             self.sudo('service rabbitmq-server restart; sleep 3;')
 
@@ -333,9 +358,12 @@ class RabbitMQSatchel(ServiceSatchel):
         if self.env.management_enabled != lm.management_enabled:
             self.enable_management_interface()
 
+        self.create_rabbitmq_conf()
+
         if self.env.loopback_users != lm.loopback_users:
             self.set_loopback_users()
 
         return self._configure_users(**kwargs)
+
 
 rabbitmq = RabbitMQSatchel()
