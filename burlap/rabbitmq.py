@@ -22,8 +22,6 @@ class RabbitMQSatchel(ServiceSatchel):
 
     name = 'rabbitmq'
 
-    ## Service options.
-
     ignore_errors = True
 
     @property
@@ -58,6 +56,7 @@ class RabbitMQSatchel(ServiceSatchel):
         self.env.admin_username = 'admin'
         self.env.user_lookup_method = None # LOCAL|DJANGO
         self.env.users_vhosts = [] # [(user, password, vhost)]
+        self.env.consumer_timeout = 1_800_000 # Default of 30 minutes in milliseconds from RabbitMQ 3.8.17.
 
         self.env.auto_purge_mnesia_enabled = False
         self.env.auto_purge_mnesia_user = 'root'
@@ -72,27 +71,27 @@ class RabbitMQSatchel(ServiceSatchel):
         self.env.bleeding = False
 
         self.env.service_commands = {
-            START:{
+            START: {
                 FEDORA: 'systemctl start rabbitmq-server.service',
                 UBUNTU: 'service rabbitmq-server start',
             },
-            STOP:{
+            STOP: {
                 FEDORA: 'systemctl stop rabbitmq-server.service',
                 UBUNTU: 'service rabbitmq-server stop',
             },
-            DISABLE:{
+            DISABLE: {
                 FEDORA: 'systemctl disable rabbitmq-server.service',
                 UBUNTU: 'chkconfig rabbitmq-server off',
             },
-            ENABLE:{
+            ENABLE: {
                 FEDORA: 'systemctl enable rabbitmq-server.service',
                 UBUNTU: 'chkconfig rabbitmq-server on',
             },
-            RESTART:{
+            RESTART: {
                 FEDORA: 'systemctl restart rabbitmq-server.service',
                 UBUNTU: 'service rabbitmq-server restart; sleep 5',
             },
-            STATUS:{
+            STATUS: {
                 FEDORA: 'systemctl status rabbitmq-server.service',
                 UBUNTU: 'service rabbitmq-server status | cat',
                 (UBUNTU, '14.04'): 'service rabbitmq-server status',
@@ -170,7 +169,7 @@ class RabbitMQSatchel(ServiceSatchel):
             r.sudo('killall rabbitmq-server')
         with settings(warn_only=True):
             r.sudo('killall beam.smp')
-        #TODO:explicitly delete all subfolders, star-delete doesn't work
+        # TODO: Explicitly delete all subfolders, star-delete doesn't work.
         r.sudo('rm -Rf /var/lib/rabbitmq/mnesia/*')
 
     @task
@@ -200,27 +199,23 @@ class RabbitMQSatchel(ServiceSatchel):
             self.sudo('rm /etc/rabbitmq/rabbitmq.conf')
         self.sudo('touch /etc/rabbitmq/rabbitmq.conf')
 
-        text = """
+        text = f"""
             ## Consumer timeout
             ## If a message delivered to a consumer has not been acknowledged before this timer
-            ## triggers, the channel will be force closed by the broker. This ensure that
+            ## triggers, the channel will be force-closed by the broker. This ensures that
             ## faulty consumers that never ack will not hold on to messages indefinitely.
-            consumer_timeout = 86400000  # 1 day in milliseconds.
+            consumer_timeout = {self.env.consumer_timeout} # In milliseconds.
         """
         self.append(filename='/etc/rabbitmq/rabbitmq.conf', text=dedent(text), use_sudo=True)
-        with self.settings(warn_only=True):
-            self.sudo('service rabbitmq-server restart; sleep 3;')
 
     @task
-    def set_loopback_users(self):
-        # This allows guest to login through the management interface.
+    def update_conf_loopback_users(self):
+        """Allow guest to log in through the management interface."""
         text = """
             ## Allow access to the "guest" user from anywhere on the network.
             loopback_users.guest = false
         """
         self.append(filename='/etc/rabbitmq/rabbitmq.conf', text=dedent(text), use_sudo=True)
-        with self.settings(warn_only=True):
-            self.sudo('service rabbitmq-server restart; sleep 3;')
 
     def get_user_vhosts(self, site=None):
         params = set() # [(user, password, vhost)]
@@ -360,8 +355,8 @@ class RabbitMQSatchel(ServiceSatchel):
 
         self.create_rabbitmq_conf()
 
-        if self.env.loopback_users != lm.loopback_users:
-            self.set_loopback_users()
+        if self.env.loopback_users:
+            self.update_conf_loopback_users()
 
         return self._configure_users(**kwargs)
 
