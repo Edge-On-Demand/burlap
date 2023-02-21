@@ -68,7 +68,6 @@ class DjangoSatchel(Satchel):
     name = 'dj'
 
     def set_defaults(self):
-
         # This is the name of the executable to call to access Django's management features.
         self.env.manage_cmd = 'manage.py'
 
@@ -116,12 +115,13 @@ class DjangoSatchel(Satchel):
         # one missing password to break the entire deployment.
         self.env.ignore_migration_errors = 0
 
+        # If true, drops connections before migrations are run.
+        self.env.drop_connections = 1
+
         # The path relative to fab where the code resides.
         self.env.src_dir = 'src'
 
         self.env.manage_dir = 'src'
-
-        self.env.ignore_migration_errors = 0
 
         # Modules whose name start with one of these values will be deleted before settings are imported.
         self.env.delete_module_with_prefixes = []
@@ -701,7 +701,7 @@ class DjangoSatchel(Satchel):
     @task
     def migrate(
         self, app='', migration='', site=None, fake=0, ignore_errors=None, database=None, migrate_apps='',
-        drop_connections=1
+        drop_connections=None
     ):
         # pylint: disable=anomalous-backslash-in-string
         """
@@ -720,15 +720,12 @@ class DjangoSatchel(Satchel):
         To pass a comma-delimited list in a fab command, escape the comma with a backslash.
 
         e.g.
-
             fab staging dj.migrate:migrate_apps=oneapp\,twoapp\,threeapp
-
         """
-
         r = self.local_renderer
 
         ignore_errors = int(r.env.ignore_migration_errors if ignore_errors is None else ignore_errors)
-        drop_connections = int(drop_connections)
+        drop_connections = int(r.env.drop_connections if drop_connections is None else drop_connections)
 
         post_south = self.version_tuple >= (1, 7, 0)
 
