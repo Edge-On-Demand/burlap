@@ -62,7 +62,7 @@ except (ImportError, NameError) as e:
     print('Unable to initialize debug: %s' % e, file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 108)
+VERSION = (0, 9, 109)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
@@ -323,9 +323,7 @@ def check_version():
         # Display warning.
         if remote_release > local_release:
             print('\033[93m')
-            print(
-                f'You are using burlap version {local_release_str}, however version {remote_release_str} is available.'
-            )
+            print(f'You are using burlap version {local_release_str}, however version {remote_release_str} is available.')
             print("You should consider upgrading via the 'pip install --upgrade burlap' command.")
             print('\033[0m')
     except Exception as exc:
@@ -369,9 +367,7 @@ def populate_fabfile():
         for module_name, module in sub_modules.items():
             locals_[module_name] = module
         for role_name, role_func in role_commands.items():
-            assert role_name not in sub_modules, (
-                f'The role {role_name} conflicts with a built-in submodule. Please choose a different name.'
-            )
+            assert role_name not in sub_modules, (f'The role {role_name} conflicts with a built-in submodule. Please choose a different name.')
             locals_[role_name] = role_func
         locals_['common'] = common
 
