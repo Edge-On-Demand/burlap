@@ -1,23 +1,20 @@
+import collections
+import importlib
+import inspect
+import json
 import logging
 import os
+import pkgutil
 import sys
 import types
-import importlib
-import pkgutil
-import inspect
 import warnings
-import collections
-
-import json
 
 try:
-    from fabric.api import env
+    import yaml
+    from fabric.api import env, hide, settings
+    from fabric.decorators import task, runs_once
     from fabric.tasks import WrappedCallableTask
     from fabric.utils import _AliasDict
-    from fabric.api import hide, settings
-    from fabric.decorators import task, runs_once
-
-    import yaml
 
     # Variables cached per-role. Must be after deepcopy.
     env._rc = type(env)()
@@ -37,10 +34,8 @@ try:
 
     yaml.add_representer(type(env), _represent_dictorder)
     yaml.add_representer(_AliasDict, _represent_dictorder)
-    #yaml.add_representer(tuple, _represent_tuple) # we need tuples for hash keys
     yaml.add_constructor('tag:yaml.org,2002:python/tuple', _construct_tuple)
     yaml.add_representer(types.FunctionType, _represent_function)
-
 except ImportError as e:
     print('Unable to initialize fabric or yaml: %s' % e, file=sys.stderr)
 
@@ -74,17 +69,21 @@ burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
 no_load = int(os.environ.get('BURLAP_NO_LOAD', 0))
 
 # Show virtually all logging messages by default.
-default_loglevel = logging.getLevelName(os.environ.get('LOGLEVEL', 'INFO'))
+default_loglevel = logging.getLevelName(os.environ.get('LOGLEVEL', 'INFO').upper())
 logger = logging.getLogger()
-logger.setLevel(default_loglevel)
 handler = logging.StreamHandler()
-handler.setLevel(default_loglevel)
-formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s", "%Y-%m-%d %H:%M:%S")
+try:
+    logger.setLevel(default_loglevel)
+    handler.setLevel(default_loglevel)
+except ValueError:
+    logger.setLevel(logging.INFO)
+    handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s', '%Y-%m-%d %H:%M:%S')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Silence INFO-level Paramiko noise.
-logging.getLogger("paramiko").setLevel(logging.WARNING)
+logging.getLogger('paramiko').setLevel(logging.WARNING)
 
 
 def _get_environ_handler(name, d):
@@ -315,7 +314,7 @@ def check_version():
         # The only reason this would fail is if it's being run during the initial setup.py install, when dependencies haven't all been installed yet.
         return
     try:
-        with urlopen("https://pypi.org/pypi/burlap/json") as response:
+        with urlopen('https://pypi.org/pypi/burlap/json') as response:
             data = json.loads(response.read().decode())
         remote_release = sorted(tuple(map(int, _.split('.'))) for _ in data['releases'].keys())[-1]
         remote_release_str = '.'.join(map(str, remote_release))
@@ -324,12 +323,14 @@ def check_version():
         # Display warning.
         if remote_release > local_release:
             print('\033[93m')
-            print(f"You are using burlap version {local_release_str}, however version {remote_release_str} is available.")
+            print(
+                f'You are using burlap version {local_release_str}, however version {remote_release_str} is available.'
+            )
             print("You should consider upgrading via the 'pip install --upgrade burlap' command.")
             print('\033[0m')
     except Exception as exc:
         print('\033[93m')
-        print("Unable to check for updated burlap version: %s" % exc)
+        print(f'Unable to check for updated burlap version: {exc}')
         print('\033[0m')
 
 
@@ -368,9 +369,9 @@ def populate_fabfile():
         for module_name, module in sub_modules.items():
             locals_[module_name] = module
         for role_name, role_func in role_commands.items():
-            assert role_name not in sub_modules, \
-                ('The role %s conflicts with a built-in submodule. '
-                 'Please choose a different name.') % (role_name)
+            assert role_name not in sub_modules, (
+                f'The role {role_name} conflicts with a built-in submodule. Please choose a different name.'
+            )
             locals_[role_name] = role_func
         locals_['common'] = common
 
@@ -379,7 +380,7 @@ def populate_fabfile():
 
         # Put all virtual satchels in the global namespace so Fabric can find them.
         for _module_alias in common.post_import_modules:
-            exec("import %s" % _module_alias) # pylint: disable=exec-used
+            exec(f'import {_module_alias}') # pylint: disable=exec-used
             locals_[_module_alias] = locals()[_module_alias]
 
     finally:
@@ -403,13 +404,12 @@ if common and not no_load:
                 continue
             _f = load_role_handler(_name)
             _var_name = 'role_' + _name
-            _cmd = f"{_var_name} = _f"
+            _cmd = f'{_var_name} = _f'
             exec(_cmd) # pylint: disable=exec-used
             role_commands[_var_name] = _f
 
     # Auto-import all sub-modules.
-    sub_modules = {}
-    sub_modules['common'] = common
+    sub_modules = {'common': common}
     __all__ = []
     for loader, module_name, is_pkg in pkgutil.walk_packages(__path__):
         if module_name in locals():
