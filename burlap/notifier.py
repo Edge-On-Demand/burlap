@@ -17,6 +17,7 @@ class DeploymentNotifierSatchel(Satchel):
     def set_defaults(self):
 
         self.env.email_enabled = False
+        self.env.on_failure_only = False
         self.env.email_host = None
         self.env.email_port = 587
         self.env.email_host_user = None
@@ -75,7 +76,7 @@ class DeploymentNotifierSatchel(Satchel):
         """
         force = int(force)
 
-        if force or self.env.email_enabled and self.genv.host_string == self.genv.hosts[0]: # First host only
+        if force or self.env.email_enabled and not self.env.on_failure_only and self.genv.host_string == self.genv.hosts[0]: # First host only
             subject = subject or '{} Deployment Started'.format(self.genv.ROLE.title())
             message = message or 'Deployment to {} has started.'.format(self.genv.ROLE)
             self.send_email(subject=subject, message=message, recipient_list=self.env.email_recipient_list)
@@ -89,7 +90,7 @@ class DeploymentNotifierSatchel(Satchel):
         """
         force = int(force)
 
-        if force or self.env.email_enabled and self.genv.host_string == self.genv.hosts[-1]: # Last host only
+        if force or self.env.email_enabled and not self.env.on_failure_only and self.genv.host_string == self.genv.hosts[-1]: # Last host only
             subject = subject or '{} Deployment Complete'.format(self.genv.ROLE.title())
             message = message or 'Deployment to {} is complete.'.format(self.genv.ROLE)
             self.send_email(subject=subject, message=message, recipient_list=self.env.email_recipient_list)
