@@ -149,13 +149,18 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         # Note, if you use gzip, you can't use parallel restore.
         #self.env.dump_command = 'time pg_dump -c -U {db_user} --no-password --blobs --format=c --schema=public --host={db_host} {db_name} > {dump_fn}'
-        self.env.dump_command = 'time pg_dump -c -U {db_user} --no-password --blobs --format=c --schema=public --host={db_host} --dbname={db_name} | ' \
-            'gzip -c > {dump_fn}'
+        self.env.dump_command = (
+            'time pg_dump -c -U {db_user} --no-password --blobs --format=c --schema=public --host={db_host} '
+            '--dbname={db_name} | gzip -c > {dump_fn}'
+        )
         self.env.dump_fn_template = '{dump_dest_dir}/db_{db_type}_{SITE}_{ROLE}_{db_name}_$(date +%Y%m%d).sql.gz'
 
         #self.env.load_command = 'gunzip < {remote_dump_fn} | pg_restore --jobs=8 -U {db_root_username} --format=c --create --dbname={db_name}'
-        self.env.load_command = 'gunzip < {remote_dump_fn} | ' \
-            'pg_restore -U {db_root_username} --host={db_host} --format=c --clean --if-exists --schema=public --dbname={db_name}'
+        self.env.load_command = (
+            'gunzip < {remote_dump_fn} | pg_restore -U {db_root_username} --host={db_host} --format=c --clean '
+            '--if-exists --schema=public --dbname={db_name}'
+        )
+        self.env.load_commands = [self.env.load_command]
 
         self.env.createlangs = ['plpgsql'] # plpythonu
         self.env.postgres_user = 'postgres'
@@ -561,11 +566,13 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 "ALTER ROLE {db_user} SET search_path TO {db_schema};", name=name, site=site, as_db_root_user=True)
 
         if not prep_only:
-            # Run load command (as postgres user, if database is hosted locally)
-            if r.env.db_host in {'localhost', '127.0.0.1'}:
-                r.sudo(r.env.load_command, user=r.env.postgres_user)
-            else:
-                r.run(r.env.load_command)
+            is_local = r.env.db_host in {'localhost', '127.0.0.1'}
+            for load_command in r.env.load_commands:
+                if is_local:
+                    # Load command needs to be run as postgres user if database is hosted locally.
+                    r.sudo(load_command, user=r.env.postgres_user)
+                else:
+                    r.run(load_command)
 
         # Allow connections for the user, now that restoration is complete.
         # This won't run if the load fails, but that may be a good thing, as we don't want users to connect to or modify
