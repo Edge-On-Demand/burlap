@@ -422,7 +422,6 @@ class PackagerSatchel(Satchel):
 
     @task(precursors=['user', 'ubuntumultiverse', 'locales'])
     def configure(self, **kwargs):
-
         initial_upgrade = int(kwargs.pop('initial_upgrade', 1))
 
         service = kwargs.pop('service', '')
@@ -443,10 +442,12 @@ class PackagerSatchel(Satchel):
             if self.env.do_reboots:
                 self.reboot(wait=300, timeout=60)
 
-        self.install_repositories(service=service, **kwargs)
-        self.install_required(type=SYSTEM, service=service, **kwargs)
-        self.install_custom(**kwargs)
-        self.uninstall_blacklisted()
+        try:
+            self.install_repositories(service=service, **kwargs)
+            self.install_required(type=SYSTEM, service=service, **kwargs)
+            self.install_custom(**kwargs)
+        finally:
+            self.uninstall_blacklisted()
 
 
 class UbuntuMultiverseSatchel(Satchel):
