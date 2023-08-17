@@ -11,9 +11,8 @@ from collections import defaultdict
 from functools import cmp_to_key
 from pprint import pprint
 
-import six
 from fabric.exceptions import CommandTimeout
-from six import StringIO
+from io import StringIO
 
 from burlap import Satchel
 from burlap.constants import *
@@ -33,11 +32,11 @@ class DjangoSettingsTracker(BaseTracker):
     """
 
     def __init__(self, names, *args, **kwargs):
-        if isinstance(names, six.string_types):
+        if isinstance(names, str):
             names = names.replace(',', ' ').split(' ')
         names = names or []
         assert isinstance(names, (tuple, list, set))
-        names = sorted(set(_.strip() for _ in names if _.strip()))
+        names = sorted({_.strip() for _ in names if _.strip()})
         super().__init__(*args, **kwargs)
         self.names = names
 
@@ -46,7 +45,7 @@ class DjangoSettingsTracker(BaseTracker):
         return ', '.join(self.names)
 
     def __repr__(self):
-        return '<%s %s>' % (type(self).__name__, self.names_string)
+        return f'<{type(self).__name__} {self.names_string}>'
 
     def natural_key(self):
         return (self.names_string,)
@@ -185,6 +184,8 @@ class DjangoSatchel(Satchel):
                     del sys.modules[r.env.settings_module]
 
                 #TODO:fix r.env.settings_module not loading from settings?
+
+
 #                 print('r.genv.django_settings_module:', r.genv.django_settings_module, file=_stdout)
 #                 print('r.genv.dj_settings_module:', r.genv.dj_settings_module, file=_stdout)
 #                 print('r.env.settings_module:', r.env.settings_module, file=_stdout)
@@ -197,14 +198,14 @@ class DjangoSatchel(Satchel):
                 module = import_module(r.format(r.env.settings_module))
 
                 if site:
-                    assert site == module.SITE, 'Unable to set SITE to "%s" Instead it is set to "%s".' % (site, module.SITE)
+                    assert site == module.SITE, f'Unable to set SITE to "{site}" Instead it is set to "{module.SITE}".'
 
                 # Works as long as settings.py doesn't also reload anything.
                 import imp
                 imp.reload(module)
 
             except ImportError as e:
-                print('Warning: Could not import settings for site "%s": %s' % (site, e), file=_stdout)
+                print(f'Warning: Could not import settings for site "{site}": {e}', file=_stdout)
                 traceback.print_exc(file=_stdout)
                 #raise # breaks *_secure pseudo sites
                 return
@@ -225,7 +226,7 @@ class DjangoSatchel(Satchel):
         site = site or r.env.get('SITE') or r.genv.SITE or r.genv.default_site
         role = role or r.env.get('ROLE') or r.genv.ROLE
         settings = self.get_settings(site=site, role=role)
-        assert settings, 'Unable to load Django settings for site %s.' % (site,)
+        assert settings, f'Unable to load Django settings for site {site}.'
         r.env.django_settings = settings
         default_db = settings.DATABASES[name]
         if self.verbose:
@@ -254,7 +255,7 @@ class DjangoSatchel(Satchel):
             r.env.db_type = r.env.db_engine
 
         for k, v in r.genv.items():
-            if not k.startswith(self.name.lower()+'_db_'):
+            if not k.startswith(self.name.lower() + '_db_'):
                 continue
             print('db.kv:', k, v)
 
@@ -286,7 +287,8 @@ class DjangoSatchel(Satchel):
             if d1[1] and d1[1] in d0[2]:
                 return +1
             return (d0[0] > d1[0]) - (d0[0] < d1[0])
-        cmp_paths = cmp_to_key(cmp_paths)  # py3 fix
+
+        cmp_paths = cmp_to_key(cmp_paths) # py3 fix
 
         def get_paths(t):
             """
@@ -301,7 +303,7 @@ class DjangoSatchel(Satchel):
                     continue
                 if not path.lower().endswith('.sql'):
                     continue
-                content = open(path, 'r').read()
+                content = open(path).read()
                 matches = re.findall(r'[\s\t]+VIEW[\s\t]+([a-zA-Z0-9_]{3,})', content, flags=re.IGNORECASE)
                 view_name = ''
                 if matches:
@@ -363,17 +365,13 @@ class DjangoSatchel(Satchel):
                         r.run('psql --user={db_user} --no-password --host={db_host} -d {db_name} --command="{sql}"')
                 else:
                     paths = list(get_paths('postgresql'))
-                    run_paths(
-                        paths=paths,
-                        cmd_template="psql --host={db_host} --user={db_user} --no-password -d {db_name} -f {sql_path}")
+                    run_paths(paths=paths, cmd_template="psql --host={db_host} --user={db_user} --no-password -d {db_name} -f {sql_path}")
 
             elif 'mysql' in r.env.db_engine:
                 if sql:
                     raise NotImplementedError("Custom SQL commands are not yet supported for MySQL.")
                 paths = list(get_paths('mysql'))
-                run_paths(
-                    paths=paths,
-                    cmd_template="mysql -v -h {db_host} -u {db_user} -p'{db_password}' {db_name} < {sql_path}")
+                run_paths(paths=paths, cmd_template="mysql -v -h {db_host} -u {db_user} -p'{db_password}' {db_name} < {sql_path}")
 
             else:
                 raise NotImplementedError
@@ -396,7 +394,8 @@ class DjangoSatchel(Satchel):
             r.env.project_dir = r.env.local_project_dir
         r.run_or_local(
             'export SITE={SITE}; export ROLE={ROLE}; {createsuperuser_export_cmd} cd {project_dir}; '
-            '{manage_cmd} {createsuperuser_cmd} {options_str}')
+            '{manage_cmd} {createsuperuser_cmd} {options_str}'
+        )
 
     @task
     def loaddata(self, path, site=None):
@@ -414,9 +413,7 @@ class DjangoSatchel(Satchel):
             try:
                 self.set_db(site=_site)
                 r.env.SITE = _site
-                r.sudo('export SITE={SITE}; export ROLE={ROLE}; '
-                    'cd {project_dir}; '
-                    '{manage_cmd} loaddata {_loaddata_path}')
+                r.sudo('export SITE={SITE}; export ROLE={ROLE}; ' 'cd {project_dir}; ' '{manage_cmd} loaddata {_loaddata_path}')
             except KeyError:
                 pass
 
@@ -430,6 +427,7 @@ class DjangoSatchel(Satchel):
             site: Site to migrate (defaults to all if neither site nor self.genv.SITE is set)
         """
         r = self.local_renderer
+        user = kwargs.pop('user', None)
         environs = kwargs.pop('environs', '').strip()
         if environs:
             environs = ' '.join('export %s=%s;' % tuple(_.split('=')) for _ in environs.split(','))
@@ -437,9 +435,7 @@ class DjangoSatchel(Satchel):
         r.env.cmd = cmd
         r.env.SITE = r.genv.SITE or r.genv.default_site
         r.env.args = ' '.join(map(str, args))
-        r.env.kwargs = ' '.join(
-            ('--%s' % _k if _v in (True, 'True') else '--%s=%s' % (_k, _v))
-            for _k, _v in kwargs.items())
+        r.env.kwargs = ' '.join(('--%s' % _k if _v in (True, 'True') else f'--{_k}={_v}') for _k, _v in kwargs.items())
         r.env.environs = environs
         if self.is_local:
             r.env.project_dir = r.env.local_project_dir
@@ -447,7 +443,7 @@ class DjangoSatchel(Satchel):
         site = site or self.genv.SITE or ALL
         for _site, site_data in self.iter_unique_databases(site=site):
             if self.verbose:
-                print('-'*80, file=sys.stderr)
+                print('-' * 80, file=sys.stderr)
                 print('site:', _site, file=sys.stderr)
             if self.env.available_sites_by_host:
                 hostname = self.current_hostname
@@ -455,9 +451,11 @@ class DjangoSatchel(Satchel):
                 if sites_on_host and _site not in sites_on_host:
                     self.vprint('skipping site:', _site, sites_on_host, file=sys.stderr)
                     continue
-            r.run_or_local(
-                'export SITE={SITE}; export ROLE={ROLE};{environs} cd {project_dir}; {manage_cmd} {cmd} {args} {kwargs}'
-            )
+            cmd = 'export SITE={SITE}; export ROLE={ROLE};{environs} cd {project_dir}; {manage_cmd} {cmd} {args} {kwargs}'
+            if user:
+                r.sudo(cmd, user=user)
+            else:
+                r.run_or_local(cmd)
 
     @task
     def manage_all(self, *args, **kwargs):
@@ -469,7 +467,7 @@ class DjangoSatchel(Satchel):
         """
         for site, site_data in self.iter_unique_databases(site=ALL):
             if self.verbose:
-                print('-'*80, file=sys.stderr)
+                print('-' * 80, file=sys.stderr)
                 print('site:', site, file=sys.stderr)
             if self.env.available_sites_by_host:
                 hostname = self.current_hostname
@@ -500,23 +498,23 @@ class DjangoSatchel(Satchel):
             #TODO:remove this once bug in django-celery has been fixed
             os.environ['ALLOW_CELERY'] = '0'
 
-#             print('settings_module:', r.format(r.env.settings_module))
+            #             print('settings_module:', r.format(r.env.settings_module))
             os.environ['DJANGO_SETTINGS_MODULE'] = r.format(r.env.settings_module)
-#             os.environ['CELERY_LOADER'] = 'django'
-#             os.environ['SITE'] = r.genv.SITE or r.genv.default_site
-#             os.environ['ROLE'] = r.genv.ROLE or r.genv.default_role
+            #             os.environ['CELERY_LOADER'] = 'django'
+            #             os.environ['SITE'] = r.genv.SITE or r.genv.default_site
+            #             os.environ['ROLE'] = r.genv.ROLE or r.genv.default_role
 
             # In Django >= 1.7, fixes the error AppRegistryNotReady: Apps aren't loaded yet
             # Disabling, in Django >= 1.10, throws exception:
             # RuntimeError: Model class django.contrib.contenttypes.models.ContentType
             # doesn't declare an explicit app_label and isn't in an application in INSTALLED_APPS.
-#             try:
-#                 from django.core.wsgi import get_wsgi_application
-#                 application = get_wsgi_application()
-#             except (ImportError, RuntimeError):
-#                 raise
-#                 print('Unable to get wsgi application.')
-#                 traceback.print_exc()
+            #             try:
+            #                 from django.core.wsgi import get_wsgi_application
+            #                 application = get_wsgi_application()
+            #             except (ImportError, RuntimeError):
+            #                 raise
+            #                 print('Unable to get wsgi application.')
+            #                 traceback.print_exc()
 
             # In Django >= 1.7, fixes the error AppRegistryNotReady: Apps aren't loaded yet
             try:
@@ -628,9 +626,7 @@ class DjangoSatchel(Satchel):
             r.env.shell_host_string = '{user}@{host_string}'
         r.env.shell_default_dir = self.genv.shell_default_dir_template
         r.env.shell_interactive_djshell_str = self.genv.interactive_shell_template
-        r.local(
-            'ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} '
-            '"{shell_interactive_djshell_str}"')
+        r.local('ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} ' '"{shell_interactive_djshell_str}"')
 
     @task
     def dbshell(self, database=None):
@@ -647,9 +643,7 @@ class DjangoSatchel(Satchel):
         r.env.shell_default_dir = self.genv.shell_default_dir_template
         r.env.shell_interactive_dbshell_str = self.genv.interactive_dbshell_template
         r.env.database_arg = f' --database={database}' if database else ''
-        r.local(
-            'ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} '
-            '"{shell_interactive_dbshell_str}{database_arg}"')
+        r.local('ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} ' '"{shell_interactive_dbshell_str}{database_arg}"')
 
     @task
     def syncdb(self, site=None, all=0, database=None, ignore_errors=1): # pylint: disable=redefined-builtin
@@ -682,16 +676,16 @@ class DjangoSatchel(Satchel):
                     if use_run_syncdb:
                         r.run_or_local(
                             'export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; '
-                            '{manage_cmd} migrate --run-syncdb --noinput {db_syncdb_database}')
+                            '{manage_cmd} migrate --run-syncdb --noinput {db_syncdb_database}'
+                        )
                     else:
                         # Between Django>=1.7,<1.9 we can only do a regular migrate, no true syncdb.
-                        r.run_or_local(
-                            'export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; '
-                            '{manage_cmd} migrate --noinput {db_syncdb_database}')
+                        r.run_or_local('export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; ' '{manage_cmd} migrate --noinput {db_syncdb_database}')
                 else:
                     r.run_or_local(
                         'export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; '
-                        '{manage_cmd} syncdb --noinput {db_syncdb_all_flag} {db_syncdb_database}')
+                        '{manage_cmd} syncdb --noinput {db_syncdb_all_flag} {db_syncdb_database}'
+                    )
 
     @property
     def version_tuple(self):
@@ -699,12 +693,9 @@ class DjangoSatchel(Satchel):
         return tuple(r.env.version)
 
     @task
-    def migrate(
-        self, app='', migration='', site=None, fake=0, ignore_errors=None, database=None, migrate_apps='',
-        drop_connections=None
-    ):
+    def migrate(self, app='', migration='', site=None, fake=0, ignore_errors=None, database=None, migrate_apps='', drop_connections=None):
         # pylint: disable=anomalous-backslash-in-string
-        """
+        r"""
         Runs the standard South migrate command for one or more sites.
 
         Args:
@@ -730,11 +721,7 @@ class DjangoSatchel(Satchel):
         post_south = self.version_tuple >= (1, 7, 0)
 
         migrate_apps = migrate_apps or ''
-        migrate_apps = [
-            _.strip().split('.')[-1]
-            for _ in migrate_apps.strip().split(',')
-            if _.strip()
-        ]
+        migrate_apps = [_.strip().split('.')[-1] for _ in migrate_apps.strip().split(',') if _.strip()]
         if app:
             migrate_apps.append(app)
 
@@ -754,7 +741,7 @@ class DjangoSatchel(Satchel):
         #databases = list(self.iter_unique_databases(site=site))
         databases = self.iter_unique_databases(site=site)
         for _site, site_data in databases:
-            self.vprint('-'*80, file=sys.stderr)
+            self.vprint('-' * 80, file=sys.stderr)
             self.vprint('site:', _site, file=sys.stderr)
 
             if self.env.available_sites_by_host:

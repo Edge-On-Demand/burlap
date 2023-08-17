@@ -110,10 +110,7 @@ class RabbitMQSatchel(ServiceSatchel):
         r = self.local_renderer
         if self.env.bleeding and not lm.bleeding:
             # Install.
-            r.append(
-                text='deb http://www.rabbitmq.com/debian/ testing main',
-                filename='/etc/apt/sources.list.d/rabbitmq.list',
-                use_sudo=True)
+            r.append(text='deb http://www.rabbitmq.com/debian/ testing main', filename='/etc/apt/sources.list.d/rabbitmq.list', use_sudo=True)
             r.sudo('cd /tmp; wget -O- https://www.rabbitmq.com/rabbitmq-release-signing-key.asc | sudo apt-key add -')
             r.sudo('apt-get update')
 
@@ -227,7 +224,7 @@ class RabbitMQSatchel(ServiceSatchel):
             dj = self.get_satchel('dj')
             for _site, site_data in self.iter_sites(site=site, renderer=self.render_paths, no_secure=True):
                 if self.verbose:
-                    print('!'*80, file=sys.stderr)
+                    print('!' * 80, file=sys.stderr)
                     print('site:', _site, file=sys.stderr)
 
                 _settings = dj.get_settings(site=_site)
@@ -259,18 +256,14 @@ class RabbitMQSatchel(ServiceSatchel):
 
         # Install script to perform the actual check.
         self.install_script(
-            local_path=r.env.auto_purge_mnesia_command_template,
-            remote_path=r.env.auto_purge_mnesia_command_path,
-            render=True,
-            extra=r.collect_genv())
+            local_path=r.env.auto_purge_mnesia_command_template, remote_path=r.env.auto_purge_mnesia_command_path, render=True, extra=r.collect_genv()
+        )
         r.sudo('chown root:root {auto_purge_mnesia_command_path}')
 
         # Install crontab to schedule running the script.
         self.install_script(
-            local_path=r.env.auto_purge_mnesia_crontab_template,
-            remote_path=r.env.auto_purge_mnesia_crontab_path,
-            render=True,
-            extra=r.collect_genv())
+            local_path=r.env.auto_purge_mnesia_crontab_template, remote_path=r.env.auto_purge_mnesia_crontab_path, render=True, extra=r.collect_genv()
+        )
         r.sudo('chown root:root {auto_purge_mnesia_crontab_path}')
         r.sudo('chmod 600 {auto_purge_mnesia_crontab_path}')
         r.sudo('service cron restart')
@@ -282,7 +275,7 @@ class RabbitMQSatchel(ServiceSatchel):
         """
         self.install_purge_script()
         r = self.local_renderer
-        s_args = (' '.join(map(str, args))) + ' ' + (' '.join('%s=%s' % (k, v) for k, v in kwargs.items()))
+        s_args = (' '.join(map(str, args))) + ' ' + (' '.join(f'{k}={v}' for k, v in kwargs.items()))
         s_args = s_args.strip()
         r.sudo('{auto_purge_mnesia_command_path}' + ((' ' + s_args) if s_args else ''))
 
@@ -358,7 +351,7 @@ class RabbitMQSatchel(ServiceSatchel):
         if self.env.loopback_users:
             self.update_conf_loopback_users()
 
-        return self._configure_users(**kwargs)
+        return self._configure_users(site=site, **kwargs)
 
 
 rabbitmq = RabbitMQSatchel()

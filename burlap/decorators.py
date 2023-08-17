@@ -76,6 +76,10 @@ def _task(meth, bools):
 
         return ret
 
+    # Auto-collect booleans from optional type annotations.
+    if meth.__annotations__:
+        bools.update({k for k, v in meth.__annotations__.items() if v is bool})
+
     # Copy the wrapped method's attributes to the wrapper so it's accessible from Fabric the same as the original method.
     wrapper.__name__ = meth.__name__
     for attr in _METHOD_ATTRIBUTES:
@@ -111,19 +115,22 @@ def task(*args, **kwargs):
     """
     precursors = kwargs.pop('precursors', None)
     post_callback = kwargs.pop('post_callback', False)
-    bools = kwargs.pop('bools', [])
+    bools = set(kwargs.pop('bools', []))
     if args and callable(args[0]):
         # direct decoration, @task
         return _task(*args, bools)
 
+    deploy_before = list(precursors or [])
+
     # callable decoration, @task(precursors=['satchel'])
     def wrapper(meth):
         if precursors:
-            meth.deploy_before = list(precursors)
+            meth.deploy_before = deploy_before
         if post_callback:
             meth.is_post_callback = True
         return _task(meth, bools)
 
+    wrapper.deploy_before = deploy_before
     return wrapper
 
 

@@ -99,7 +99,7 @@ class ApacheSatchel(ServiceSatchel):
 
         self.env.auth_basic = False
         self.env.auth_basic_authuserfile = '{apache_docroot}/.htpasswd_{apache_site}'
-        self.env.auth_basic_users = []  # [(user,password)]
+        self.env.auth_basic_users = [] # [(user,password)]
 
         # If true, activates a rewrite rule that causes domain.com to redirect
         # to www.domain.com.
@@ -148,8 +148,8 @@ class ApacheSatchel(ServiceSatchel):
         self.env.wsgi_processes = 5
         self.env.wsgi_threads = 15
 
-        self.env.domain_redirect_templates = []  # [(wrong_domain,right_domain)]
-        self.env.domain_redirects = []  # [(wrong_domain,right_domain)]
+        self.env.domain_redirect_templates = [] # [(wrong_domain,right_domain)]
+        self.env.domain_redirects = [] # [(wrong_domain,right_domain)]
 
         self.env.extra_rewrite_rules = ''
 
@@ -159,11 +159,11 @@ class ApacheSatchel(ServiceSatchel):
 
         self.env.modevasive_enabled = False
         self.env.modevasive_DOSEmailNotify = 'admin@localhost'
-        self.env.modevasive_DOSPageInterval = 1  # seconds
+        self.env.modevasive_DOSPageInterval = 1 # seconds
         self.env.modevasive_DOSPageCount = 2
         self.env.modevasive_DOSSiteCount = 50
-        self.env.modevasive_DOSSiteInterval = 1  # seconds
-        self.env.modevasive_DOSBlockingPeriod = 10  # seconds
+        self.env.modevasive_DOSSiteInterval = 1 # seconds
+        self.env.modevasive_DOSBlockingPeriod = 10 # seconds
 
         self.env.modsecurity_enabled = False
         self.env.modsecurity_download_url = 'https://github.com/SpiderLabs/owasp-modsecurity-crs/tarball/master'
@@ -229,7 +229,7 @@ class ApacheSatchel(ServiceSatchel):
         # Useful for easily keying domain-local.com/domain-dev.com/domain-staging.com.
         self.env.locale = ''
 
-        self.env.sync_sets = {}  # {name:[dict(local_path='static/', remote_path='$AWS_BUCKET:/')]}
+        self.env.sync_sets = {} # {name:[dict(local_path='static/', remote_path='$AWS_BUCKET:/')]}
 
         # This will be appended to the custom Apache configuration file.
         self.env.httpd_conf_append = []
@@ -309,7 +309,7 @@ class ApacheSatchel(ServiceSatchel):
                 print('cert_type, cert_file_template:', cert_type, cert_file_template, file=sys.stderr)
             _local_cert_file = os.path.join(r.env.ssl_dir_local, cert_file_template % self.genv)
             local_cert_file = self.find_template(_local_cert_file)
-            assert local_cert_file, 'Unable to find local certificate file: %s' % (_local_cert_file,)
+            assert local_cert_file, f'Unable to find local certificate file: {_local_cert_file}'
             remote_cert_file = os.path.join(r.env.ssl_dir, cert_file_template % self.genv)
             yield cert_type, local_cert_file, remote_cert_file
 
@@ -331,14 +331,14 @@ class ApacheSatchel(ServiceSatchel):
                     priors.add(datum)
                     if verbose:
                         print('=' * 80)
-                        print('Installing certificate %s->%s...' % (local_cert_file, remote_cert_file,))
+                        print('Installing certificate {}->{}...'.format(
+                            local_cert_file,
+                            remote_cert_file,
+                        ))
                     if not init_dir:
                         init_dir = True
                         self.sudo('mkdir -p %(apache_ssl_dir)s' % self.genv)
-                    self.put(
-                        local_path=local_cert_file,
-                        remote_path=remote_cert_file,
-                        use_sudo=True)
+                    self.put(local_path=local_cert_file, remote_path=remote_cert_file, use_sudo=True)
 
         self.sudo('mkdir -p %(apache_ssl_dir)s' % self.genv)
         self.sudo('chown -R %(apache_web_user)s:%(apache_web_group)s %(apache_ssl_dir)s' % self.genv)
@@ -425,7 +425,7 @@ class ApacheSatchel(ServiceSatchel):
                 if clean:
                     r.sudo('rm -Rf {apache_sync_remote_path}')
 
-                print('Syncing %s to %s...' % (r.env.sync_local_path, r.env.sync_remote_path))
+                print(f'Syncing {r.env.sync_local_path} to {r.env.sync_remote_path}...')
 
                 r.env.tmp_chmod = paths.get('chmod', r.env.chmod)
                 r.sudo('mkdir -p {apache_sync_remote_path}')
@@ -433,7 +433,8 @@ class ApacheSatchel(ServiceSatchel):
                 r.env.v_flag = 'v' if self.verbose else ''
                 r.local(
                     'rsync -r{v_flag}z --info=progress2 --recursive --no-p --no-g --rsh "ssh -o StrictHostKeyChecking=no -i '
-                    '{key_filename}" {apache_sync_local_path} {user}@{host_string}:{apache_sync_remote_path}')
+                    '{key_filename}" {apache_sync_local_path} {user}@{host_string}:{apache_sync_remote_path}'
+                )
                 r.sudo('chown -R {apache_web_user}:{apache_web_group} {apache_sync_remote_path}')
 
         if iter_local_paths:
@@ -480,16 +481,10 @@ class ApacheSatchel(ServiceSatchel):
             fn = r.render_to_file('apache/apache_modevasive.template.conf')
 
             # Ubuntu 12.04
-            r.put(
-                local_path=fn,
-                remote_path='/etc/apache2/mods-available/mod-evasive.conf',
-                use_sudo=True)
+            r.put(local_path=fn, remote_path='/etc/apache2/mods-available/mod-evasive.conf', use_sudo=True)
 
             # Ubuntu 14.04
-            r.put(
-                local_path=fn,
-                remote_path='/etc/apache2/mods-available/evasive.conf',
-                use_sudo=True)
+            r.put(local_path=fn, remote_path='/etc/apache2/mods-available/evasive.conf', use_sudo=True)
 
             self.enable_mod('evasive')
         else:
@@ -518,18 +513,14 @@ class ApacheSatchel(ServiceSatchel):
             # Write OWASP rules.
             r.env.modsecurity_download_filename = '/tmp/owasp-modsecurity-crs.tar.gz'
             r.sudo('cd /tmp; wget --output-document={apache_modsecurity_download_filename} {apache_modsecurity_download_url}')
-            r.env.modsecurity_download_top = r.sudo(
-                "cd /tmp; "
-                "tar tzf %(apache_modsecurity_download_filename)s | sed -e 's@/.*@@' | uniq" % self.genv)
+            r.env.modsecurity_download_top = r.sudo("cd /tmp; " "tar tzf %(apache_modsecurity_download_filename)s | sed -e 's@/.*@@' | uniq" % self.genv)
             r.sudo('cd /tmp; tar -zxvf %(apache_modsecurity_download_filename)s' % self.genv)
             r.sudo('cd /tmp; cp -R %(apache_modsecurity_download_top)s/* /etc/modsecurity/' % self.genv)
             r.sudo('mv /etc/modsecurity/modsecurity_crs_10_setup.conf.example  /etc/modsecurity/modsecurity_crs_10_setup.conf')
 
             r.sudo('rm -f /etc/modsecurity/activated_rules/*')
-            r.sudo('cd /etc/modsecurity/base_rules; '
-                   'for f in * ; do ln -s /etc/modsecurity/base_rules/$f /etc/modsecurity/activated_rules/$f ; done')
-            r.sudo('cd /etc/modsecurity/optional_rules; '
-                   'for f in * ; do ln -s /etc/modsecurity/optional_rules/$f /etc/modsecurity/activated_rules/$f ; done')
+            r.sudo('cd /etc/modsecurity/base_rules; ' 'for f in * ; do ln -s /etc/modsecurity/base_rules/$f /etc/modsecurity/activated_rules/$f ; done')
+            r.sudo('cd /etc/modsecurity/optional_rules; ' 'for f in * ; do ln -s /etc/modsecurity/optional_rules/$f /etc/modsecurity/activated_rules/$f ; done')
 
             r.env.httpd_conf_append.append('Include "/etc/modsecurity/activated_rules/*.conf"')
 
@@ -614,10 +605,7 @@ class ApacheSatchel(ServiceSatchel):
                     r.env.domain = r.format(r.env.domain_template)
                 genv = r.collect_genv()
                 genv['current_hostname'] = self.current_hostname
-                fn = self.render_to_file(
-                    self.env.site_template,
-                    extra=genv,
-                    formatter=partial(r.format, ignored_variables=self.env.ignored_template_variables))
+                fn = self.render_to_file(self.env.site_template, extra=genv, formatter=partial(r.format, ignored_variables=self.env.ignored_template_variables))
                 r.env.site_conf = _site + '.conf'
                 r.env.site_conf_fqfn = os.path.join(r.env.sites_available, r.env.site_conf)
                 r.put(local_path=fn, remote_path=r.env.site_conf_fqfn, use_sudo=True)
@@ -660,14 +648,14 @@ class ApacheSatchel(ServiceSatchel):
         r.sudo('[ -f {maintenance_path} ] && rm -f {maintenance_path} || true')
 
     @task(precursors=['packager', 'user', 'hostname', 'ip'])
-    def configure(self):
+    def configure(self, site=ALL):
         self.configure_modevasive()
         self.configure_modsecurity()
         self.configure_modrpaf()
-        self.configure_site(full=1, site=ALL)
-        self.install_auth_basic_user_file(site=ALL)
+        self.configure_site(full=1, site=site)
+        self.install_auth_basic_user_file(site=site)
         self.sync_media()
-        self.install_ssl(site=ALL)
+        self.install_ssl(site=site)
 
 
 apache = ApacheSatchel()

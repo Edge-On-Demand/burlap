@@ -178,11 +178,10 @@ class PackagerSatchel(Satchel):
             raise Exception(f'Unknown packager: {packager}')
 
     @task
-    def upgrade(self, full=0):
+    def upgrade(self, full: bool = False):
         """
         Updates/upgrades all system packages.
         """
-        full = int(full)
         r = self.local_renderer
         packager = self.packager
         if packager == APT:
@@ -375,12 +374,11 @@ class PackagerSatchel(Satchel):
         self.install_required(type=SYSTEM)
 
     @task
-    def install_required(self, type=None, service=None, list_only=0, **kwargs): # pylint: disable=redefined-builtin
+    def install_required(self, type=None, service=None, list_only: bool = False, **kwargs): # pylint: disable=redefined-builtin
         """
         Installs system packages listed as required by services this host uses.
         """
         r = self.local_renderer
-        list_only = int(list_only)
         type = (type or '').lower().strip()
         assert not type or type in PACKAGE_TYPES, f'Unknown package type: {type}'
         lst = []
