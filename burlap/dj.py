@@ -1,8 +1,10 @@
 """
 Django-specific helper utilities.
 """
+import logging
 import os
 import re
+import shutil
 import sys
 import traceback
 import glob
@@ -19,6 +21,8 @@ from burlap.constants import *
 from burlap.decorators import task
 from burlap.postgresql import POSTGRESQL, POSTGIS
 from burlap.trackers import BaseTracker
+
+logger = logging.getLogger(__name__)
 
 
 class DjangoSettingsTracker(BaseTracker):
@@ -185,10 +189,6 @@ class DjangoSatchel(Satchel):
 
                 #TODO:fix r.env.settings_module not loading from settings?
 
-
-#                 print('r.genv.django_settings_module:', r.genv.django_settings_module, file=_stdout)
-#                 print('r.genv.dj_settings_module:', r.genv.dj_settings_module, file=_stdout)
-#                 print('r.env.settings_module:', r.env.settings_module, file=_stdout)
                 if 'django_settings_module' in r.genv:
                     r.env.settings_module = r.genv.django_settings_module
                 else:
@@ -868,6 +868,31 @@ class DjangoSatchel(Satchel):
             pprint(data, indent=4)
         return data
 
+    @task
+    def extract_translations(self, output_dir=None):
+        """
+        Clones all .po translation files to a directory in the specified location.
+
+        Arguments:
+
+            output_dir := Root directory to copy all files, and their parent directories, into.
+                If not given, uses the user's home directory.
+        """
+        r = self.local_renderer
+        export_dir = os.path.expanduser(output_dir or '~/translations')
+        for app_name in os.listdir(r.env.local_project_dir):
+            locale_path = os.path.join(r.env.local_project_dir, app_name, 'locale')
+            if not os.path.isdir(locale_path):
+                continue
+            for lang in os.listdir(locale_path):
+                po_path = os.path.join(locale_path, lang, 'LC_MESSAGES/django.po')
+                if os.path.isfile(po_path):
+                    export_path = os.path.join(export_dir, app_name, 'locale', lang, 'LC_MESSAGES/django.po')
+                    logger.info('Exporting %s->%s.', po_path, export_path)
+                    if not self.dryrun:
+                        os.makedirs(os.path.split(export_path)[0], exist_ok=True)
+                        shutil.copyfile(po_path, export_path)
+
     def record_manifest(self):
         manifest = super().record_manifest()
         manifest['latest_timestamp'] = self.get_media_timestamp()
@@ -913,5 +938,6 @@ class DjangoSatchel(Satchel):
             self.configure_media()
         if self.env.manage_migrations:
             self.configure_migrations()
+
 
 dj = DjangoSatchel()
