@@ -7,15 +7,11 @@ except ImportError:
     from subprocess import getstatusoutput
 
 from burlap.common import set_state, get_state, clear_state, init_env, default_env, env, all_satchels, get_dryrun, set_dryrun, get_verbose, set_verbose, \
-    is_callable
+    is_callable, COMMAND_HISTORY_LOG
 
 
 def clear_runs_once(func):
     if hasattr(func, 'return_value'):
-        print('clearing runs_once on %s' % func)
-        print('return_value:', func.return_value)
-        print('return_value:', func.wrapped.return_value)
-        print('__dict__:', func.__dict__)
         # Fabric wraps function using a class that passes through get/hasattr
         # so we have to try deleting the attribute on a few levels.
         try:
@@ -54,6 +50,7 @@ class TestCase(unittest.TestCase):
             if k in keep_env_keys:
                 continue
             del env[k]
+        COMMAND_HISTORY_LOG.clear()
 
     def update_env(self, d):
         keep_env_keys = set(self.get_keep_env_keys())

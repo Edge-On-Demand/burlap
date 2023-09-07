@@ -194,7 +194,7 @@ class DjangoSatchel(Satchel):
                 else:
                     r.env.settings_module = r.env.settings_module or r.genv.dj_settings_module
                 if self.verbose:
-                    print('r.env.settings_module:', r.env.settings_module, r.format(r.env.settings_module))
+                    print('dj.env.settings_module:', r.env.settings_module, r.format(r.env.settings_module), file=_stdout)
                 module = import_module(r.format(r.env.settings_module))
 
                 if site:

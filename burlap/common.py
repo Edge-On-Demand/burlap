@@ -61,6 +61,9 @@ ROLE_DIR = 'roles'
 
 default_env = None
 
+# Log of commands run during dryrun.
+COMMAND_HISTORY_LOG = []
+
 
 def init_env():
     """
@@ -278,8 +281,6 @@ def create_module(name, code=None):
     return module
 
 
-#http://www.saltycrane.com/blog/2010/09/class-based-fabric-scripts-metaprogramming-hack/
-#http://stackoverflow.com/questions/3799545/dynamically-importing-python-module/3799609#3799609
 def add_class_methods_as_module_level_functions_for_fabric(instance, module_name, method_name, module_alias=None):
     '''
     Utility to take the methods of the instance of a class, instance,
@@ -306,14 +307,6 @@ def add_class_methods_as_module_level_functions_for_fabric(instance, module_name
 
         # get the bound method
         func = getattr(instance, method_name)
-
-        #         if module_name == 'buildbot' or module_alias == 'buildbot':
-        #             print('-'*80)
-        #             print('module_name:', module_name)
-        #             print('method_name:', method_name)
-        #             print('module_alias:', module_alias)
-        #             print('module_obj:', module_obj)
-        #             print('func.module:', func.__module__)
 
         # Convert executable to a Fabric task, if not done so already.
         if not hasattr(func, 'is_task_or_dryrun'):
@@ -1659,6 +1652,7 @@ class Satchel:
                 print(f'{render_command_prefix()} {func_name}: run: {cmd}')
             else:
                 print(cmd)
+            COMMAND_HISTORY_LOG.append(cmd.strip())
         else:
             if ignore_errors:
                 with settings(warn_only=True):
@@ -1725,6 +1719,7 @@ class Satchel:
                 print(f'{render_command_prefix()} {cmd_run}: {cmd}')
             else:
                 print(cmd)
+            COMMAND_HISTORY_LOG.append(cmd.strip())
         else:
             from fabric.contrib.files import sed
             sed(*args, **kwargs)
@@ -1747,6 +1742,7 @@ class Satchel:
         if dryrun:
             cmd = args[0]
             print(f'[{getpass.getuser()}@localhost] {func_name}: local: {cmd}')
+            COMMAND_HISTORY_LOG.append(cmd.strip())
         else:
             return local(*args, **kwargs)
 
@@ -1780,6 +1776,7 @@ class Satchel:
                     print(f'sudo -u {user} bash -c "{escape_double_quotes_in_command(cmd)}"')
                 else:
                     print(f'sudo bash -c "{escape_double_quotes_in_command(cmd)}"')
+            COMMAND_HISTORY_LOG.append(cmd.strip())
         else:
             if ignore_errors:
                 with settings(warn_only=True):
