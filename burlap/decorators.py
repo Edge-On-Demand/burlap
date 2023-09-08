@@ -111,6 +111,7 @@ def task(*args, **kwargs):
             to always be called during Burlap initialization.
 
         bools := List of boolean argument names to auto-convert to boolean.
+            Will be auto-detected from type hints.
 
     """
     precursors = kwargs.pop('precursors', None)

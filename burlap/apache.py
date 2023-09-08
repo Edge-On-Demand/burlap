@@ -1,10 +1,13 @@
 import os
 import sys
+import logging
 from functools import partial
 
 from burlap import ServiceSatchel
 from burlap.constants import *
 from burlap.decorators import task
+
+logger = logging.getLogger(__name__)
 
 
 class ApacheSatchel(ServiceSatchel):
@@ -545,26 +548,29 @@ class ApacheSatchel(ServiceSatchel):
                 self.disable_mod('mod_rpaf')
 
     @task
-    def configure_site(self, full=1, site=None, delete_old=0):
+    def configure_site(self, full: bool = True, site=None, delete_old: bool = False):
         """
         Configures Apache to host one or more websites.
         """
         r = self.local_renderer
 
-        print('Configuring Apache...', file=sys.stderr)
+        logger.info('Configuring Apache sites.')
 
         site = site or self.genv.SITE
 
-        if int(delete_old) and site == ALL:
-            # Delete all existing enabled and available sites.
-            r.sudo('rm -f {sites_available}/*')
-            r.sudo('rm -f {sites_enabled}/*')
-
         if r.env.manage_site_conf:
 
-            # Run an optional customizable command to clear or delete old sites before writing the new ones.
-            if r.env.delete_site_command:
-                r.sudo(r.env.delete_site_command)
+            # If no single site given, then run optional bulk cleanup commands.
+            if site in (None, ALL):
+
+                # Delete all existing enabled and available sites.
+                if delete_old:
+                    r.sudo('rm -f {sites_available}/*')
+                    r.sudo('rm -f {sites_enabled}/*')
+
+                # Run an optional customizable command to clear or delete old sites before writing the new ones.
+                if r.env.delete_site_command:
+                    r.sudo(r.env.delete_site_command)
 
             for _site, site_data in self.iter_sites(site=site, setter=self.set_site_specifics):
                 r = self.local_renderer
@@ -616,7 +622,7 @@ class ApacheSatchel(ServiceSatchel):
 
         self.enable_mods()
 
-        if int(full):
+        if full:
             # Write master Apache configuration file.
             if r.env.manage_httpd_conf:
                 fn = self.render_to_file('apache/apache_httpd.template.conf')
@@ -652,7 +658,7 @@ class ApacheSatchel(ServiceSatchel):
         self.configure_modevasive()
         self.configure_modsecurity()
         self.configure_modrpaf()
-        self.configure_site(full=1, site=site)
+        self.configure_site(full=True, site=site)
         self.install_auth_basic_user_file(site=site)
         self.sync_media()
         self.install_ssl(site=site)
