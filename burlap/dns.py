@@ -2,19 +2,16 @@ import time
 import logging
 from pprint import pprint
 
-import six
-
 from burlap.constants import *
 from burlap import Satchel
 from burlap.decorators import task, runs_once
 from burlap.common import print_success
 
 GODADDY = 'godaddy'
-BACKENDS = (
-    GODADDY,
-)
+BACKENDS = (GODADDY,)
 
 logger = logging.getLogger(__name__)
+
 
 class DNSSatchel(Satchel):
     """
@@ -37,31 +34,36 @@ class DNSSatchel(Satchel):
                 a.add(d)
             return a
 
-        key = self.genv.godaddy_api_keys[domain]['key']
+        try:
+            key = self.genv.godaddy_api_keys[domain]['key']
+        except KeyError:
+            logger.warning('No Godaddy API key for domain %s. Skipping.', domain)
+            return
+
         secret = self.genv.godaddy_api_keys[domain]['secret']
         my_acct = Account(api_key=key, api_secret=secret)
         client = Client(my_acct)
         allowed_domains = get_domains(client)
         assert domain in allowed_domains, \
-            'Domain %s is invalid this account. Only domains %s are allowed.' % (domain, ', '.join(sorted(allowed_domains)))
+            'Domain {} is invalid this account. Only domains {} are allowed.'.format(domain, ', '.join(sorted(allowed_domains)))
         logger.info('Adding record: %s %s %s', domain, record_type, record)
         if not self.dryrun:
             try:
                 max_retries = 10
-                for retry in six.moves.range(max_retries):
+                for retry in range(max_retries):
                     try:
                         client.add_record(
-                            domain,
-                            {
+                            domain, {
                                 'data': record.get('ip', record.get('alias')),
                                 'name': record['name'],
                                 'ttl': record['ttl'],
                                 'type': record_type.upper()
-                            })
+                            }
+                        )
                         print_success('Record added!')
                         break
                     except ValueError as exc:
-                        logger.error('Error adding DNS record on attempt %i of %i: %s', retry+1, max_retries, exc)
+                        logger.error('Error adding DNS record on attempt %i of %i: %s', retry + 1, max_retries, exc)
                         if retry + 1 == max_retries:
                             raise
                         time.sleep(3)
@@ -122,5 +124,6 @@ class DNSSatchel(Satchel):
     def configure(self):
         if self.genv.hosts and self.genv.host_string == self.genv.hosts[0]:
             self.update_dns()
+
 
 dns = DNSSatchel()
