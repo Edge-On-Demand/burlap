@@ -1,7 +1,6 @@
 import os
 import re
 import sys
-import imp
 import types
 import copy
 import tempfile
@@ -15,6 +14,7 @@ import getpass
 import subprocess
 import uuid
 import inspect
+import types
 from collections import namedtuple, OrderedDict
 from pprint import pprint
 from functools import partial
@@ -269,7 +269,7 @@ def create_module(name, code=None):
     """
 
     if name not in sys.modules:
-        sys.modules[name] = imp.new_module(name)
+        sys.modules[name] = types.ModuleType(name)
 
     module = sys.modules[name]
 
