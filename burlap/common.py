@@ -1,7 +1,6 @@
 import os
 import re
 import sys
-import imp
 import types
 import copy
 import tempfile
@@ -269,7 +268,7 @@ def create_module(name, code=None):
     """
 
     if name not in sys.modules:
-        sys.modules[name] = imp.new_module(name)
+        sys.modules[name] = types.ModuleType(name)
 
     module = sys.modules[name]
 
