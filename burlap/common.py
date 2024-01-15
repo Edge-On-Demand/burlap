@@ -14,7 +14,6 @@ import getpass
 import subprocess
 import uuid
 import inspect
-import types
 from collections import namedtuple, OrderedDict
 from pprint import pprint
 from functools import partial
