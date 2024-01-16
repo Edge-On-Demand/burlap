@@ -15,6 +15,7 @@ before_script:
   - rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
   - apt-get -yq update
   - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.9 python3.9-minimal python3.9-dev python3.9-venv python3.9-distutils python3-pip
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.12 python3.12-minimal python3.12-dev python3.12-venv python3.12-distutils
   - apt-get -yq purge postgr* || true
   - apt-get -yq purge virtualbox* || true
   - apt-get -yq purge oracle-java* || true
@@ -42,7 +43,11 @@ before_script:
   - eval $(ssh-agent)
   - ssh-add
 
-test:
+stages:
+  - test
+
+test python 3.9:
+  stage: test
   script:
   - python3.9 -m venv .env
   - ". .env/bin/activate"
@@ -55,3 +60,18 @@ test:
   - ./pep8.sh
   #- "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
   -   tox -c tox-travis.ini -e py39-no_vagrant
+
+test python 3.12:
+  stage: test
+  script:
+  - python3.12 -m venv .env
+  - ". .env/bin/activate"
+  - pip --version
+  - pip install -U setuptools
+  - pip install -U pip
+  - pip install -U distlib
+  - pip install -r requirements-test.txt
+  - pylint --version
+  - ./pep8.sh
+  #- "tox -c tox-travis.ini -e py312-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
+  -   tox -c tox-travis.ini -e py312-no_vagrant
