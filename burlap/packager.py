@@ -75,7 +75,7 @@ class PackagerSatchel(Satchel):
                 continue
             prior_files.add(apt_fqfn)
             logger.info('Processing apt requirements file: %s', apt_fqfn)
-            with open(apt_fqfn) as fin:
+            with open(apt_fqfn, encoding='utf8') as fin:
                 for line in fin.readlines():
                     line = line.strip()
 
@@ -119,7 +119,7 @@ class PackagerSatchel(Satchel):
         if list_only:
             return [
                 _.strip()
-                for _ in open(yum_req_fn).readlines()
+                for _ in open(yum_req_fn, encoding='utf8').readlines()
                 if _.strip() and not _.strip.startswith('#') and (not package_name or _.strip() == package_name)
             ]
         if update:
@@ -221,8 +221,8 @@ class PackagerSatchel(Satchel):
                     repositories.setdefault(repo_type, [])
                     repositories[repo_type].extend(repo_lst)
 
-        for repo_type in repositories:
-            repositories[repo_type].sort()
+        for repo_type, repo_list in repositories.items():
+            repo_list.sort()
 
         return repositories
 
@@ -395,7 +395,7 @@ class PackagerSatchel(Satchel):
                         print('content:', content)
                     break
                 fd, fn = tempfile.mkstemp()
-                with open(fn, 'w') as fout:
+                with open(fn, 'w', encoding='utf8') as fout:
                     fout.write(content)
                 self.install_custom(fn=fn)
             else:

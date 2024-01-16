@@ -30,8 +30,8 @@ import re
 import sys
 import json
 
-from six.moves import xmlrpc_client as xmlrpclib
-from six.moves.urllib.request import urlopen
+from xmlrpc import client as xmlrpclib
+from urllib.request import urlopen
 
 try:
     import feedparser
@@ -52,8 +52,7 @@ TYPES = (
     APT,
 )
 
-GITHUB_PATTERN = re.compile(
-    r'https://github.com/(?P<user>[^/]+)/(?P<repo>[^/$]+)')
+GITHUB_PATTERN = re.compile(r'https://github.com/(?P<user>[^/]+)/(?P<repo>[^/$]+)')
 
 DEP_SCHEMA = (
     'type',
@@ -64,6 +63,7 @@ DEP_SCHEMA = (
     'rss_regex',
 )
 
+
 def get_github_user_repo(uri):
     matches = GITHUB_PATTERN.findall(uri)
     if not matches:
@@ -71,18 +71,22 @@ def get_github_user_repo(uri):
     user, repo = matches[0]
     return user, repo
 
+
 VERSIONER_FN = os.getenv('BURLAP_VERSIONER_FN', '~/.burlap_versioner_pip')
+
 
 def get_pip_oath():
     assert os.path.isfile(VERSIONER_FN), 'Credentials file %s does not exist.' % VERSIONER_FN
-    client_id, client_secret = open(VERSIONER_FN, 'r').read().strip().split(',')
+    with open(VERSIONER_FN, encoding='utf8') as fin:
+        client_id, client_secret = fin.read().strip().split(',')
     return client_id, client_secret
+
 
 class Dependency:
 
     def __init__(self, type, name, uri, version, rss_field, rss_regex): # pylint: disable=redefined-builtin
         self.type = type # source location, e.g. pip|github|rss|apt|etc
-        assert type in TYPES, 'Unknown type: %s' % (self.type,)
+        assert type in TYPES, f'Unknown type: {self.type}'
         self.name = name
         self.uri = uri
         self.version = version
@@ -91,7 +95,7 @@ class Dependency:
         self._cache = {}
 
     def __str__(self):
-        return u'%s==%s' % (self.name, self.version)
+        return f'{self.name}=={self.version}'
 
     def _get_current_version_pip(self):
         client = xmlrpclib.ServerProxy('http://pypi.python.org/pypi')
@@ -114,7 +118,10 @@ class Dependency:
         # Note, while unauthenticated, we can only access this url 60-times an hour.
         #TODO:use authentication to avoid rate-limiting?
         user, repo = get_github_user_repo(self.uri)
-        url = 'https://api.github.com/repos/%s/%s/tags' % (user, repo,)
+        url = 'https://api.github.com/repos/{}/{}/tags'.format(
+            user,
+            repo,
+        )
         #print 'url:',url
         resp = urlopen(url).read()
         resp = json.loads(resp)
@@ -132,8 +139,8 @@ class Dependency:
             return v
 
     def _get_current_version_apt(self):
-#        cmd = ("apt-get upgrade --dry-run %(uri)s | grep \"Conf %(uri)s\" " + \
-#            "| awk '{gsub(/[()]/,\"\"); print($3;}'") % dict(uri=self.uri)
+        #        cmd = ("apt-get upgrade --dry-run %(uri)s | grep \"Conf %(uri)s\" " + \
+        #            "| awk '{gsub(/[()]/,\"\"); print($3;}'") % dict(uri=self.uri)
         cmd = ("dpkg -s %(uri)s | grep -E \"Version:\" " + \
             "| awk '{gsub(/[()]/,\"\"); print($2;}'") % dict(uri=self.uri)
         #print cmd
@@ -164,24 +171,15 @@ class Dependency:
     def is_fresh(self):
         return not self.is_stale()
 
+
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(
-        description='Track library dependency versions.')
-    parser.add_argument('--file', dest='file', default=None,
-        help='The CSV dependency file.')
-    parser.add_argument('--stale', dest='stale', action='store_true',
-        default=False,
-        help='Only lists dependencies that have a more recent version.')
-    parser.add_argument('--line', dest='line',
-        help='A comma-delimited line describing a dependency.')
-    parser.add_argument('--pipout', dest='pipout', action='store_true',
-        default=False,
-        help='If set, outputs a pip requirements file.')
-    parser.add_argument('--pipin', dest='pipin',
-        default=None,
-        help='The filename of a pip requirements file to read and convert ' +
-            'to a dependency file.')
+    parser = argparse.ArgumentParser(description='Track library dependency versions.')
+    parser.add_argument('--file', dest='file', default=None, help='The CSV dependency file.')
+    parser.add_argument('--stale', dest='stale', action='store_true', default=False, help='Only lists dependencies that have a more recent version.')
+    parser.add_argument('--line', dest='line', help='A comma-delimited line describing a dependency.')
+    parser.add_argument('--pipout', dest='pipout', action='store_true', default=False, help='If set, outputs a pip requirements file.')
+    parser.add_argument('--pipin', dest='pipin', default=None, help='The filename of a pip requirements file to read and convert ' + 'to a dependency file.')
     args = parser.parse_args()
 
     done = False
@@ -200,20 +198,20 @@ if __name__ == '__main__':
         done = True
         fn = args.file
         if not os.path.isfile(fn):
-            print('Error: Dependency file %s does not exist.\n' % (fn,))
+            print(f'Error: Dependency file {fn} does not exist.\n')
             parser.print_help()
             sys.exit(1)
         total_stale = 0
         total = 0
-        for line in csv.DictReader(open(fn), delimiter=','):
-            dep = Dependency(**dict((k, v) for k, v in line.items() if k))
+        for line in csv.DictReader(open(fn, encoding='utf8'), delimiter=','):
+            dep = Dependency(**{k: v for k, v in line.items() if k})
             total += 1
             is_stale = dep.is_stale()
             total_stale += is_stale if is_stale is not None else 0
             if not args.stale or (args.stale and is_stale):
                 if args.pipout:
                     if dep.type == PIP:
-                        print('%s==%s' % (dep.uri, dep.version))
+                        print(f'{dep.uri}=={dep.version}')
                     continue
                 if dep.name == dep.uri:
                     print(dep.name)
@@ -222,30 +220,24 @@ if __name__ == '__main__':
                 print('\tcurrent version:', dep.get_current_version())
                 print('\tyour version:', dep.version)
                 print('\tfresh:', dep.is_fresh())
-        print('='*80)
+        print('=' * 80)
         print('%i total dependencies' % total)
         print('%i total stale dependencies' % total_stale)
-        print('%.0f%% fresh' % ((total-total_stale)/float(total)*100))
+        print('%.0f%% fresh' % ((total - total_stale) / float(total) * 100))
 
     if args.pipin:
         done = True
         fn = args.pipin
         if not os.path.isfile(fn):
-            print('Error: PIP requirements file %s does not exist.\n' % (fn,))
+            print(f'Error: PIP requirements file {fn} does not exist.\n')
             parser.print_help()
             sys.exit(1)
         print(','.join(DEP_SCHEMA))
-        for line in open(fn, 'r').readlines():
+        for line in open(fn, encoding='utf8').readlines():
             parts = line.strip().split('==')
             if not parts:
                 continue
-            args = dict(
-                type='pip',
-                name=parts[0],
-                uri=parts[0],
-                version=parts[1] if len(parts) >= 2 else '',
-                rss_field='',
-                rss_regex='')
+            args = dict(type='pip', name=parts[0], uri=parts[0], version=parts[1] if len(parts) >= 2 else '', rss_field='', rss_regex='')
             fmt = '%(type)s,%(name)s,%(uri)s,%(version)s,%(rss_field)s,' + \
                 '%(rss_regex)s'
             print(fmt % args)

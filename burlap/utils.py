@@ -2,7 +2,7 @@
 Utilities
 =========
 """
-from pipes import quote
+from shlex import quote
 import os
 import posixpath
 import hashlib
@@ -48,21 +48,23 @@ def abspath(path, local=False):
 
 
 def download(url, retry=10):
-#     from burlap.require.curl import command as require_curl
-#     require_curl()
-    run('curl --silent --retry %s -O %s' % (retry, url))
+    #     from burlap.require.curl import command as require_curl
+    #     require_curl()
+    run(f'curl --silent --retry {retry} -O {url}')
 
 
 def read_file(path):
     with hide('running', 'stdout'):
-        return run('cat {0}'.format(quote(path)))
+        return run(f'cat {quote(path)}')
 
 
 def read_lines(path):
     return read_file(path).splitlines()
 
 
-_oct = oct
+_oct = oct # pylint: disable=used-before-assignment
+
+
 def oct(v, **kwargs): # pylint: disable=redefined-builtin
     """
     A backwards compatible version of oct() that works with Python2.7 and Python3.
@@ -83,8 +85,8 @@ def get_file_hash(fin, block_size=2**20):
     Iteratively builds a file hash without loading the entire file into memory.
     Designed to process an arbitrary binary file.
     """
-    if isinstance(fin, six.string_types):
-        fin = open(fin) # pylint: disable=consider-using-with
+    if isinstance(fin, str):
+        fin = open(fin, encoding='utf8') # pylint: disable=consider-using-with
     h = hashlib.sha512()
     while True:
         data = fin.read(block_size)

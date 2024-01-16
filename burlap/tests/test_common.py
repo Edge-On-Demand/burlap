@@ -96,13 +96,13 @@ class CommonTests(TestCase):
         except OSError:
             pass
 
-        open('/tmp/burlap_test/roles/all/settings.yaml',
-             'w').write("""
+        open('/tmp/burlap_test/roles/all/settings.yaml', 'w',
+             encoding='utf8').write("""
 only_all_param: "just in all"
 overridden_by_prod: 123
 overridden_by_local: slkdjflsk
     """)
-        open('/tmp/burlap_test/roles/prod/settings.yaml', 'w').write(
+        open('/tmp/burlap_test/roles/prod/settings.yaml', 'w', encoding='utf8').write(
             """inherits: all
 overridden_by_prod: 'prod'
 only_prod_param: 7891
@@ -112,15 +112,17 @@ overridden_by_local: oiuweoiruwo
 includes: [settings_include2.yaml]
     """
         )
-        open('/tmp/burlap_test/roles/prod/settings_include2.yaml', 'w').write("""
+        open('/tmp/burlap_test/roles/prod/settings_include2.yaml', 'w',
+             encoding='utf8').write("""
 overriden_by_include: xyz
 overridden_by_local: ovmxlkfsweirwio
     """)
-        open('/tmp/burlap_test/roles/prod/settings_local.yaml', 'w').write("""
+        open('/tmp/burlap_test/roles/prod/settings_local.yaml', 'w',
+             encoding='utf8').write("""
 overridden_by_local: 'hello world'
 includes: [settings_include3.yaml]
     """)
-        open('/tmp/burlap_test/roles/prod/settings_include3.yaml', 'w').write("""
+        open('/tmp/burlap_test/roles/prod/settings_include3.yaml', 'w', encoding='utf8').write("""
 set_by_include3: 'some special setting'
     """)
         os.chdir('/tmp/burlap_test')
@@ -231,13 +233,15 @@ set_by_include3: 'some special setting'
         _, fn = tempfile.mkstemp()
         text = '[{rabbit, [{loopback_users, []}]}].'
         test.append(filename=fn, text=text)
-        content = open(fn).read()
+        with open(fn, encoding='utf8') as fin:
+            content = fin.read()
         print('content0:', content)
         assert content.count(text) == 1
 
         # Confirm duplicate lines are appended.
         test.append(filename=fn, text=text)
-        content = open(fn).read()
+        with open(fn, encoding='utf8') as fin:
+            content = fin.read()
         print('content1:', content)
         assert content.count(text) == 1
 

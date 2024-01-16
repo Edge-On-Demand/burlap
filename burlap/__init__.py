@@ -36,13 +36,13 @@ try:
     yaml.add_representer(_AliasDict, _represent_dictorder)
     yaml.add_constructor('tag:yaml.org,2002:python/tuple', _construct_tuple)
     yaml.add_representer(types.FunctionType, _represent_function)
-except ImportError as e:
-    print('Unable to initialize fabric or yaml: %s' % e, file=sys.stderr)
+except ImportError as exc:
+    print(f'Unable to initialize fabric or yaml: {exc}', file=sys.stderr)
 
 try:
     env
-except NameError as e:
-    print('Unable to initialize env: %s' % e, file=sys.stderr)
+except NameError as exc:
+    print(f'Unable to initialize env: {exc}', file=sys.stderr)
     env = None
     env_default = {}
 
@@ -52,17 +52,17 @@ try:
     ServiceSatchel = common.ServiceSatchel
     ContainerSatchel = common.ContainerSatchel
     env_default = common.save_env()
-except (ImportError, NameError) as e:
-    print('Unable to initialize common: %s' % e, file=sys.stderr)
+except (ImportError, NameError) as exc:
+    print(f'Unable to initialize common: {exc}', file=sys.stderr)
     common = None
 
 try:
     from . import debug
-except (ImportError, NameError) as e:
-    print('Unable to initialize debug: %s' % e, file=sys.stderr)
+except (ImportError, NameError) as exc:
+    print(f'Unable to initialize debug: {exc}', file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 117)
+VERSION = (0, 9, 118)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
@@ -140,8 +140,8 @@ def _get_environ_handler(name, d):
         translator = None
         if hostname:
             # Filter hosts list by a specific host name.
-            module_name = '.'.join(env.hostname_translator.split('.')[:-1])
-            func_name = env.hostname_translator.split('.')[-1]
+            module_name = '.'.join(env.hostname_translator.rsplit('.', maxsplit=1)[:-1])
+            func_name = env.hostname_translator.rsplit('.', maxsplit=1)[-1]
             translator = getattr(importlib.import_module(module_name), func_name)
 
         # Re-load environment for current role, incase loading
@@ -203,7 +203,7 @@ def update_merge(d, u):
     """
     for k, v in u.items():
         if isinstance(v, collections.abc.Mapping):
-            r = update_merge(d.get(k, dict()), v)
+            r = update_merge(d.get(k, {}), v)
             d[k] = r
         else:
             d[k] = u[k]
@@ -239,7 +239,8 @@ def load_yaml_settings(name, priors=None, verbose=0):
         return config
     if verbose:
         print('Loading settings:', settings_fn)
-    config.update(yaml.safe_load(open(settings_fn)) or type(env)())
+    with open(settings_fn, encoding='utf8') as fin:
+        config.update(yaml.safe_load(fin) or type(env)())
 
     if 'inherits' in config:
         parent_name = config['inherits']
@@ -257,7 +258,8 @@ def load_yaml_settings(name, priors=None, verbose=0):
         assert include_fn, 'Invalid include file: %s' % _include_fn
         if verbose:
             print('Loading include settings:', include_fn)
-        data = yaml.safe_load(open(include_fn))
+        with open(include_fn, encoding='utf8') as fin:
+            data = yaml.safe_load(fin)
         config.update(data)
 
     # Load local overrides.
@@ -265,7 +267,8 @@ def load_yaml_settings(name, priors=None, verbose=0):
     if settings_local_fn:
         if verbose:
             print('Loading local settings:', settings_local_fn)
-        data = yaml.safe_load(open(settings_local_fn)) or type(env)()
+        with open(settings_local_fn, encoding='utf8') as fin:
+            data = yaml.safe_load(fin) or type(env)()
         includes = data.pop('includes', [])
         config.update(data)
 
@@ -276,7 +279,8 @@ def load_yaml_settings(name, priors=None, verbose=0):
             assert include_fn, 'Invalid include file: %s' % _include_fn
             if verbose:
                 print('Loading include settings:', include_fn)
-            data = yaml.safe_load(open(include_fn))
+            with open(include_fn, encoding='utf8') as fin:
+                data = yaml.safe_load(fin)
             config.update(data)
 
     config['includes'] = load_includes
@@ -407,13 +411,14 @@ if common and not no_load:
     # Auto-import all sub-modules.
     sub_modules = {'common': common}
     __all__ = []
+    print('__path__:', __path__)
     for loader, module_name, is_pkg in pkgutil.walk_packages(__path__):
         if module_name in locals():
             continue
         if module_name.startswith('tests'):
             continue
         __all__.append(module_name)
-        module = loader.find_module(module_name).load_module(module_name)
+        module = loader.find_spec(module_name).loader.load_module(module_name)
         sub_modules[module_name] = module
 
     if burlap_populate_stack:

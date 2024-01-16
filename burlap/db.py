@@ -16,6 +16,7 @@ from burlap.common import str_to_callable
 CONNECTION_HANDLER_DJANGO = 'django'
 CONNECTION_HANDLER_CUSTOM = 'custom'
 
+
 class DatabaseSatchel(ServiceSatchel):
 
     name = 'db'
@@ -62,10 +63,9 @@ class DatabaseSatchel(ServiceSatchel):
         """
         Returns a dictionary of default settings for each database.
         """
-        return dict(
-            # {name: None=burlap settings, Django=Django Python settings}
-            connection_handler=None,
-        )
+        return {
+            'connection_handler': None,
+        }
 
     @task
     def execute(self, sql, name='default', site=None, **kwargs):
@@ -105,7 +105,7 @@ class DatabaseSatchel(ServiceSatchel):
             print('db.set_root_logins:', r.env.root_logins)
         if key in r.env.root_logins:
             data = r.env.root_logins[key]
-#             print('data:', data)
+            #             print('data:', data)
             if 'username' in data:
                 r.env.db_root_username = data['username']
                 r.genv.db_root_username = data['username']
@@ -113,7 +113,7 @@ class DatabaseSatchel(ServiceSatchel):
                 r.env.db_root_password = data['password']
                 r.genv.db_root_password = data['password']
         else:
-            msg = 'Warning: No root login entry found for host %s in role %s.' % (r.env.get('db_host'), self.genv.get('ROLE'))
+            msg = 'Warning: No root login entry found for host {} in role {}.'.format(r.env.get('db_host'), self.genv.get('ROLE'))
             print(msg, file=sys.stderr)
             #warnings.warn(msg, UserWarning)
 
@@ -151,7 +151,7 @@ class DatabaseSatchel(ServiceSatchel):
                 self.vprint('Using django handler...')
                 dj = self.get_satchel('dj')
                 if self.verbose:
-                    print('Loading Django DB settings for site {} and role {}.'.format(site, role), file=sys.stderr)
+                    print(f'Loading Django DB settings for site {site} and role {role}.', file=sys.stderr)
                 dj.set_db(name=name, site=site, role=role)
                 _d = dj.local_renderer.collect_genv(include_local=True, include_global=False)
 
@@ -163,9 +163,9 @@ class DatabaseSatchel(ServiceSatchel):
                     pprint(_d)
                 d.update(_d)
 
-            elif d.connection_handler and d.connection_handler.startswith(CONNECTION_HANDLER_CUSTOM+':'):
+            elif d.connection_handler and d.connection_handler.startswith(CONNECTION_HANDLER_CUSTOM + ':'):
 
-                _callable_str = d.connection_handler[len(CONNECTION_HANDLER_CUSTOM+':'):]
+                _callable_str = d.connection_handler[len(CONNECTION_HANDLER_CUSTOM + ':'):]
                 self.vprint('Using custom handler %s...' % _callable_str)
                 _d = str_to_callable(_callable_str)(role=self.genv.ROLE)
                 if self.verbose:
@@ -208,16 +208,16 @@ class DatabaseSatchel(ServiceSatchel):
         Retrieves the size of the database in bytes.
         """
         #TODO:remove django hardcoding
-#         dj = self.get_satchel('dj')
-#         dj.set_db(site=env.SITE, role=env.ROLE)
-#         r = self.local_renderer
-#         if 'postgres' in self.genv.db_engine or 'postgis' in self.genv.db_engine:
-#             output = r.run('psql --user=%(db_postgresql_postgres_user)s --tuples-only -c "SELECT pg_database_size(\'%(db_name)s\');"')
-#             output = self.run(cmd)
-#             output = int(output.strip().split('\n')[-1].strip())
-#             self.vprint('database size (bytes):', output)
-#             return output
-#         else:
+        #         dj = self.get_satchel('dj')
+        #         dj.set_db(site=env.SITE, role=env.ROLE)
+        #         r = self.local_renderer
+        #         if 'postgres' in self.genv.db_engine or 'postgis' in self.genv.db_engine:
+        #             output = r.run('psql --user=%(db_postgresql_postgres_user)s --tuples-only -c "SELECT pg_database_size(\'%(db_name)s\');"')
+        #             output = self.run(cmd)
+        #             output = int(output.strip().split('\n')[-1].strip())
+        #             self.vprint('database size (bytes):', output)
+        #             return output
+        #         else:
         raise NotImplementedError
 
     @task
@@ -275,9 +275,9 @@ class DatabaseSatchel(ServiceSatchel):
             print('dst_free_space:', pretty_bytes(free_space_bytes))
             print
             if viable:
-                print('Viable! There will be %.02f %s of disk space left.' % (balance_bytes_scaled, units))
+                print(f'Viable! There will be {balance_bytes_scaled:.02f} {units} of disk space left.')
             else:
-                print('Not viable! We would be %.02f %s short.' % (balance_bytes_scaled, units))
+                print(f'Not viable! We would be {balance_bytes_scaled:.02f} {units} short.')
 
         return viable
 
@@ -300,7 +300,7 @@ class DatabaseSatchel(ServiceSatchel):
         raise NotImplementedError
 
     def render_fn(self, fn):
-        return subprocess.check_output('echo %s' % fn, shell=True, universal_newlines=True).strip()
+        return subprocess.check_output('echo %s' % fn, shell=True, text=True).strip()
 
     def get_default_db_fn(self, fn_template=None, dest_dir=None, name=None, site=None):
         r = self.database_renderer(name=name, site=site)
@@ -359,8 +359,10 @@ class DatabaseSatchel(ServiceSatchel):
             # Download the database dump file on the remote host to localhost.
             if not from_local and to_local:
                 r.pc('Downloading database snapshot to localhost.')
-                r.local('rsync -rvz --progress --recursive --no-p --no-g '
-                    '--rsh "ssh -o StrictHostKeyChecking=no -i {key_filename}" {user}@{host_string}:{dump_fn} {dump_fn}')
+                r.local(
+                    'rsync -rvz --progress --recursive --no-p --no-g '
+                    '--rsh "ssh -o StrictHostKeyChecking=no -i {key_filename}" {user}@{host_string}:{dump_fn} {dump_fn}'
+                )
 
                 # Delete the snapshot file on the remote system.
                 if int(cleanup):
@@ -371,8 +373,8 @@ class DatabaseSatchel(ServiceSatchel):
             if to_local and int(archive):
                 r.pc('Archiving database snapshot.')
                 db_fn = r.render_fn(r.env.dump_fn)
-                r.env.archive_fn = '%s/%s' % (env.db_dump_archive_dir, os.path.split(db_fn)[-1])
-                r.local('mv %s %s' % (db_fn, env.archive_fn))
+                r.env.archive_fn = f'{env.db_dump_archive_dir}/{os.path.split(db_fn)[-1]}'
+                r.local(f'mv {db_fn} {env.archive_fn}')
 
         else:
             r.pc('Local dump file already exists.')
@@ -391,13 +393,15 @@ class DatabaseSatchel(ServiceSatchel):
         if remote_dump_fn:
             r.env.remote_dump_fn = remote_dump_fn
 
-        r.local('rsync -rvz --progress --no-p --no-g '
+        r.local(
+            'rsync -rvz --progress --no-p --no-g '
             '--rsh "ssh -o StrictHostKeyChecking=no -i {key_filename}" '
-            '{local_dump_fn} {user}@{host_string}:{remote_dump_fn}')
+            '{local_dump_fn} {user}@{host_string}:{remote_dump_fn}'
+        )
 
     @task
     @runs_once
-    def load(self, db_dump_fn='', prep_only=0, force_upload=0, from_local=0):
+    def load(self, dump_fn='', prep_only=0, force_upload=0, from_local=0):
         """
         Restores a database snapshot onto the target database server.
 
@@ -438,5 +442,6 @@ class DatabaseSatchel(ServiceSatchel):
         Returns true if a database with the given name exists. False otherwise.
         """
         raise NotImplementedError
+
 
 #db = DatabaseSatchel()

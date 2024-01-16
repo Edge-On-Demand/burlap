@@ -1,9 +1,6 @@
-
 from collections import OrderedDict
 
 import yaml
-
-import six
 
 from fabric.api import env
 
@@ -32,7 +29,7 @@ class Shelf:
     def _dict(self):
         try:
             return OrderedDict(yaml.load(open(self.filename, 'rb'), Loader=yaml.SafeLoader) or {})
-        except IOError:
+        except OSError:
             return OrderedDict()
 
     def __getitem__(self, name):
@@ -48,11 +45,13 @@ class Shelf:
     def setdefault(self, name, default):
         d = self._dict
         d.setdefault(name, default)
-        yaml.dump(d, open(self.filename, 'wb'))
+        with open(self.filename, 'wb') as fout:
+            yaml.dump(d, fout)
 
     def set(self, name, value):
         d = self._dict
-        if self.ascii_str and isinstance(value, six.string_types):
+        if self.ascii_str and isinstance(value, str):
             value = str(value)
         d[name] = value
-        yaml.dump(d, open(self.filename, 'wb'))
+        with open(self.filename, 'wb') as fout:
+            yaml.dump(d, fout)

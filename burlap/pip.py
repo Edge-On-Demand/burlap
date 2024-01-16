@@ -138,7 +138,7 @@ class PIPSatchel(Satchel):
         """
 
         def iter_lines(fn):
-            with open(fn) as fin:
+            with open(fn, encoding='utf8') as fin:
                 for line in fin.readlines():
                     line = line.strip()
                     if not line or line.startswith('#'):

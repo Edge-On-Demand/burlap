@@ -2,7 +2,7 @@
 Files and directories
 =====================
 """
-from pipes import quote
+from shlex import quote
 import os
 from tempfile import mkstemp
 try:
@@ -10,8 +10,6 @@ try:
 except ImportError:
     from urllib.parse import urlparse
 import hashlib
-
-import six
 
 from fabric.api import run as _run, sudo as _sudo, abort, warn
 from fabric.api import hide
@@ -22,7 +20,8 @@ from burlap.decorators import task
 from burlap.utils import run_as_root
 from burlap import ContainerSatchel
 
-BLOCKSIZE = 2 ** 20 # 1MB
+BLOCKSIZE = 2**20 # 1MB
+
 
 class watch:
     """
@@ -69,7 +68,7 @@ class watch:
     """
 
     def __init__(self, filenames, callback=None, use_sudo=False):
-        if isinstance(filenames, six.string_types):
+        if isinstance(filenames, str):
             self.filenames = [filenames]
         else:
             self.filenames = filenames
@@ -91,6 +90,7 @@ class watch:
                 break
         if self.changed and self.callback:
             self.callback()
+
 
 class FileSatchel(ContainerSatchel):
     """
@@ -193,10 +193,21 @@ class FileSatchel(ContainerSatchel):
         return func('umask')
 
     @task
-    def upload_template(self, filename, destination, context=None, use_jinja=False,
-                        template_dir=None, use_sudo=False, backup=True,
-                        mirror_local_mode=False, mode=None,
-                        mkdir=False, chown=False, user=None):
+    def upload_template(
+        self,
+        filename,
+        destination,
+        context=None,
+        use_jinja=False,
+        template_dir=None,
+        use_sudo=False,
+        backup=True,
+        mirror_local_mode=False,
+        mode=None,
+        mkdir=False,
+        chown=False,
+        user=None
+    ):
         """
         Upload a template file.
 
@@ -233,7 +244,7 @@ class FileSatchel(ContainerSatchel):
         if chown:
             if user is None:
                 user = self.genv.user
-            run_as_root('chown %s: %s' % (user, quote(destination)))
+            run_as_root(f'chown {user}: {quote(destination)}')
 
     @task
     def md5sum(self, filename, use_sudo=False):
@@ -243,22 +254,22 @@ class FileSatchel(ContainerSatchel):
         func = use_sudo and run_as_root or self.run
         with self.settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
             # Linux (LSB)
-            if exists(u'/usr/bin/md5sum'):
-                res = func(u'/usr/bin/md5sum %(filename)s' % locals())
+            if exists('/usr/bin/md5sum'):
+                res = func('/usr/bin/md5sum %(filename)s' % locals())
             # BSD / OS X
-            elif exists(u'/sbin/md5'):
-                res = func(u'/sbin/md5 -r %(filename)s' % locals())
+            elif exists('/sbin/md5'):
+                res = func('/sbin/md5 -r %(filename)s' % locals())
             # SmartOS Joyent build
-            elif exists(u'/opt/local/gnu/bin/md5sum'):
-                res = func(u'/opt/local/gnu/bin/md5sum %(filename)s' % locals())
+            elif exists('/opt/local/gnu/bin/md5sum'):
+                res = func('/opt/local/gnu/bin/md5sum %(filename)s' % locals())
             # SmartOS Joyent build
             # (the former doesn't exist, at least on joyent_20130222T000747Z)
-            elif exists(u'/opt/local/bin/md5sum'):
-                res = func(u'/opt/local/bin/md5sum %(filename)s' % locals())
+            elif exists('/opt/local/bin/md5sum'):
+                res = func('/opt/local/bin/md5sum %(filename)s' % locals())
             # Try to find ``md5sum`` or ``md5`` on ``$PATH`` or abort
             else:
-                md5sum = func(u'which md5sum')
-                md5 = func(u'which md5')
+                md5sum = func('which md5sum')
+                md5 = func('which md5')
                 if exists(md5sum):
                     res = func('%(md5sum)s %(filename)s' % locals())
                 elif exists(md5):
@@ -272,7 +283,7 @@ class FileSatchel(ContainerSatchel):
             warn(res)
             _md5sum = None
 
-        if isinstance(_md5sum, six.string_types):
+        if isinstance(_md5sum, str):
             _md5sum = _md5sum.strip().split('\n')[-1].split()[0]
 
         return _md5sum
@@ -287,7 +298,6 @@ class FileSatchel(ContainerSatchel):
         if res.succeeded:
             return [line for line in res.splitlines() if line and not line.startswith('#')]
         return []
-
 
     def getmtime(self, path, use_sudo=False):
         """
@@ -307,7 +317,7 @@ class FileSatchel(ContainerSatchel):
         """
         func = use_sudo and run_as_root or self.run
         options = '-r ' if recursive else ''
-        func('/bin/cp {0}{1} {2}'.format(options, quote(source), quote(destination)))
+        func(f'/bin/cp {options}{quote(source)} {quote(destination)}')
 
     @task
     def move(self, source, destination, use_sudo=False):
@@ -315,7 +325,7 @@ class FileSatchel(ContainerSatchel):
         Move a file or directory
         """
         func = use_sudo and run_as_root or self.run
-        func('/bin/mv {0} {1}'.format(quote(source), quote(destination)))
+        func(f'/bin/mv {quote(source)} {quote(destination)}')
 
     @task
     def symlink(self, source, destination, use_sudo=False):
@@ -323,7 +333,7 @@ class FileSatchel(ContainerSatchel):
         Create a symbolic link to a file or directory
         """
         func = use_sudo and run_as_root or self.run
-        func('/bin/ln -s {0} {1}'.format(quote(source), quote(destination)))
+        func(f'/bin/ln -s {quote(source)} {quote(destination)}')
 
     @task
     def remove(self, path, recursive=False, use_sudo=False):
@@ -332,21 +342,21 @@ class FileSatchel(ContainerSatchel):
         """
         func = use_sudo and run_as_root or self.run
         options = '-r ' if recursive else ''
-        func('/bin/rm {0}{1}'.format(options, quote(path)))
+        func(f'/bin/rm {options}{quote(path)}')
 
     @task
     def upload(self, src, dst=None):
         dst = self.put(local_path=src, remote_path=dst)
-        print('Uploaded to %s' % (dst,))
+        print(f'Uploaded to {dst}')
 
     @task
     def download(self, src, dst=None):
         dst = self.get(local_path=dst, remote_path=src)
-        print('Downloaded to %s' % (dst,))
+        print(f'Downloaded to {dst}')
 
-    def require(self, path=None, contents=None, source=None, url=None, md5=None,
-         use_sudo=False, owner=None, group='', mode=None, verify_remote=True,
-         temp_dir='/tmp'):
+    def require(
+        self, path=None, contents=None, source=None, url=None, md5=None, use_sudo=False, owner=None, group='', mode=None, verify_remote=True, temp_dir='/tmp'
+    ):
         """
         Require a file to exist and have specific contents and properties.
 
@@ -433,9 +443,7 @@ class FileSatchel(ContainerSatchel):
             else:
                 digest = None
 
-            if (not self.is_file(path, use_sudo=use_sudo) or
-                    (verify_remote and
-                        self.md5sum(path, use_sudo=use_sudo) != digest.hexdigest())):
+            if (not self.is_file(path, use_sudo=use_sudo) or (verify_remote and self.md5sum(path, use_sudo=use_sudo) != digest.hexdigest())):
                 with self.settings(hide('running')):
                     self.put(local_path=source, remote_path=path, use_sudo=use_sudo, temp_dir=temp_dir)
 
@@ -454,5 +462,6 @@ class FileSatchel(ContainerSatchel):
             mode = oct(0o666 & ~int(self.umask(use_sudo=True), base=8))
         if mode and self.get_mode(path, use_sudo) != mode:
             func('chmod %(mode)s "%(path)s"' % locals())
+
 
 file = FileSatchel() # pylint: disable=redefined-builtin

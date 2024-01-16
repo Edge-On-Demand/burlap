@@ -15,6 +15,7 @@ from burlap.context import set_cwd
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
+
 class ProjectTests(TestCase):
 
     def setUp(self):
@@ -27,25 +28,19 @@ class ProjectTests(TestCase):
     #TODO:re-enable after deploy merged
     def _test_project(self):
         try:
-            project_dir = '/tmp/burlap_test_project'#tempfile.mkdtemp()
+            project_dir = '/tmp/burlap_test_project' #tempfile.mkdtemp()
             if not os.path.isdir(project_dir):
                 os.makedirs(project_dir)
             bin_dir = os.path.split(sys.executable)[0]
 
             with set_cwd(project_dir):
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'burlap-admin.py skel myproject'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'burlap-admin.py skel myproject')
                 print(cmd)
                 ret = os.system(cmd)
                 print('ret:', ret)
                 assert not ret
 
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'burlap-admin.py add-role prod dev'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'burlap-admin.py add-role prod dev')
                 print(cmd)
                 ret = os.system(cmd)
                 print('ret:', ret)
@@ -54,7 +49,8 @@ class ProjectTests(TestCase):
                 if not os.path.isdir('satchels'):
                     os.makedirs('satchels')
                 os.system('touch satchels/__init__.py')
-                open('satchels/junk.py', 'w').write("""
+                open('satchels/junk.py', 'w', encoding='utf8').write(
+                    """
 from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
@@ -75,57 +71,53 @@ class JunkSatchel(Satchel):
         self.show_param()
 
 junk = JunkSatchel()
-""")
+"""
+                )
 
-                open('roles/all/settings.yaml', 'w').write(yaml.dump(dict(
-                    app_name='myproject_site',
-                    default_site='myproject',
-                    services=['junk'],
-                    sites={},
-                    junk_param='allvalue',
-                )))
+                open('roles/all/settings.yaml', 'w', encoding='utf8').write(
+                    yaml.dump(dict(
+                        app_name='myproject_site',
+                        default_site='myproject',
+                        services=['junk'],
+                        sites={},
+                        junk_param='allvalue',
+                    ))
+                )
 
-                open('roles/prod/settings.yaml', 'w').write(yaml.dump(dict(
-                    inherits='all',
-                    hosts=['localhost'],
-                    junk_enabled=True,
-                    junk_param='prodvalue',
-                )))
+                open('roles/prod/settings.yaml', 'w',
+                     encoding='utf8').write(yaml.dump(dict(
+                         inherits='all',
+                         hosts=['localhost'],
+                         junk_enabled=True,
+                         junk_param='prodvalue',
+                     )))
 
-                open('roles/dev/settings.yaml', 'w').write(yaml.dump(dict(
-                    inherits='all',
-                    hosts=['localhost'],
-                    junk_enabled=True,
-                    junk_param='devvalue',
-                )))
+                open('roles/dev/settings.yaml', 'w',
+                     encoding='utf8').write(yaml.dump(dict(
+                         inherits='all',
+                         hosts=['localhost'],
+                         junk_enabled=True,
+                         junk_param='devvalue',
+                     )))
 
                 ## Check prod role.
 
                 os.system('rm -Rf .burlap')
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'fab prod junk.show_param'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'fab prod junk.show_param')
                 print(cmd)
                 status, output = getstatusoutput(cmd)
                 print('output:', output)
                 assert 'param:prodvalue' in output
 
                 os.system('rm -Rf .burlap')
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'fab prod deploy.preview:verbose=1'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'fab prod deploy.preview:verbose=1')
                 print(cmd)
                 status, output = getstatusoutput(cmd)
                 print('output:', output)
                 assert 'junk.configure' in output
 
                 os.system('rm -Rf .burlap')
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'fab prod deploy.run:yes=1'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'fab prod deploy.run:yes=1')
                 print(cmd)
                 status, output = getstatusoutput(cmd)
                 print('output:', output)
@@ -134,30 +126,21 @@ junk = JunkSatchel()
                 ## Check dev role.
 
                 os.system('rm -Rf .burlap')
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'fab dev junk.show_param'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'fab dev junk.show_param')
                 print(cmd)
                 status, output = getstatusoutput(cmd)
                 print('output:', output)
                 assert 'param:devvalue' in output
 
                 os.system('rm -Rf .burlap')
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'fab dev deploy.preview'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'fab dev deploy.preview')
                 print(cmd)
                 status, output = getstatusoutput(cmd)
                 print('output:', output)
                 assert 'junk.configure' in output
 
                 os.system('rm -Rf .burlap')
-                cmd = (
-                    '. {bin_dir}/activate; '
-                    'fab dev deploy.run:yes=1'
-                ).format(**locals())
+                cmd = (f'. {bin_dir}/activate; ' f'fab dev deploy.run:yes=1')
                 print(cmd)
                 status, output = getstatusoutput(cmd)
                 print('output:', output)
@@ -167,13 +150,11 @@ junk = JunkSatchel()
             #shutil.rmtree(project_dir)
             pass
 
-
     def test_find_template(self):
         fn = 'burlap/gitignore.template'
         ret = find_template(fn)
         print('ret:', ret)
         assert ret and ret.endswith(fn)
-
 
     def test_render_to_string(self):
         ret = render_to_string(
@@ -183,6 +164,7 @@ junk = JunkSatchel()
                 postfix_port=1234,
                 postfix_username='myusername',
                 postfix_password='mypassword',
-            ))
+            )
+        )
         print('ret:', ret)
         assert ret == "[smtp.test.com]:1234 myusername:mypassword"

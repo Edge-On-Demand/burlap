@@ -2,11 +2,12 @@ import re
 
 from fabric.api import hide
 
-from six.moves.urllib.request import urlopen
+from urllib.request import urlopen
 
 from burlap.constants import *
 from burlap import ContainerSatchel
 from burlap.decorators import task
+
 
 def _to_int(val):
     try:
@@ -14,7 +15,9 @@ def _to_int(val):
     except ValueError:
         return val
 
+
 DOWNLOAD_LINK_PATTERN = re.compile(r'http[s]{0,1}://[^/]+/vagrant/[0-9\.]+/vagrant[^"]+')
+
 
 class VagrantSatchel(ContainerSatchel):
 
@@ -48,7 +51,7 @@ class VagrantSatchel(ContainerSatchel):
         port = config['Port']
 
         # Build host string
-        host_string = "%s@%s:%s" % (user, hostname, port)
+        host_string = f"{user}@{hostname}:{port}"
 
         settings['user'] = user
         settings['hosts'] = [host_string]
@@ -61,7 +64,6 @@ class VagrantSatchel(ContainerSatchel):
         settings['disable_known_hosts'] = True
 
         return settings
-
 
     @task
     def version(self):
@@ -77,7 +79,6 @@ class VagrantSatchel(ContainerSatchel):
         version = re.match(r'Vagrant (?:v(?:ersion )?)?(.*)', line).group(1)
         return tuple(_to_int(part) for part in version.split('.'))
 
-
     @task
     def setup(self, name=''):
         r = self.local_renderer
@@ -86,18 +87,15 @@ class VagrantSatchel(ContainerSatchel):
             print(_settings)
         r.genv.update(_settings)
 
-
     @task
     def init(self):
         r = self.local_renderer
         r.local('vagrant init {box}')
 
-
     @task
     def up(self):
         r = self.local_renderer
         r.local('vagrant up --provider={provider}')
-
 
     @task
     def shell(self):
@@ -105,18 +103,15 @@ class VagrantSatchel(ContainerSatchel):
         self.setup()
         r.local(r.env.shell_command)
 
-
     @task
     def destroy(self):
         r = self.local_renderer
         r.local('vagrant destroy')
 
-
     @task
     def upload(self, src, dst=None):
         r = self.local_renderer
         r.put(local_path=src, remote_path=dst)
-
 
     #http://serverfault.com/a/758017/41252
     @task
@@ -124,10 +119,7 @@ class VagrantSatchel(ContainerSatchel):
         r = self.local_renderer
         self.setup()
         hostname, port = r.genv.host_string.split('@')[-1].split(':')
-        r.local((
-            'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no '
-            '-i %s %s@%s -p %s') % (r.genv.key_filename, r.genv.user, hostname, port))
-
+        r.local(('ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ' '-i %s %s@%s -p %s') % (r.genv.key_filename, r.genv.user, hostname, port))
 
     def _settings_dict(self, config):
         settings = {}
@@ -137,7 +129,7 @@ class VagrantSatchel(ContainerSatchel):
         port = config['Port']
 
         # Build host string
-        host_string = "%s@%s:%s" % (user, hostname, port)
+        host_string = f"{user}@{hostname}:{port}"
 
         settings['user'] = user
         settings['hosts'] = [host_string]
@@ -150,7 +142,6 @@ class VagrantSatchel(ContainerSatchel):
         settings['disable_known_hosts'] = True
 
         return settings
-
 
     @task
     def vagrant(self, name=''):
@@ -238,7 +229,7 @@ class VagrantSatchel(ContainerSatchel):
         """
         Get the list of vagrant base boxes
         """
-        return sorted(list(set(name for name, provider in self._box_list())))
+        return sorted(list({name for name, provider in self._box_list()}))
 
     def _box_list(self):
         if self.version() >= (1, 4):
@@ -281,16 +272,14 @@ class VagrantSatchel(ContainerSatchel):
         """
         from burlap.system import get_arch, distrib_family
         r = self.local_renderer
-        content = urlopen(r.env.download_url).read()
-        print(len(content))
+        with urlopen(r.env.download_url) as fin:
+            content = fin.read()
         matches = DOWNLOAD_LINK_PATTERN.findall(content)
-        print(matches)
         arch = get_arch() # e.g. 'x86_64'
         family = distrib_family()
         if family == DEBIAN:
             ext = '.deb'
             matches = [match for match in matches if match.endswith(ext) and arch in match]
-            print('matches:', matches)
             assert matches, "No matches found."
             assert len(matches) == 1, "Too many matches found: %s" % (', '.join(matches))
             r.env.final_download_url = matches[0]
@@ -303,5 +292,6 @@ class VagrantSatchel(ContainerSatchel):
     @task(precursors=['packager', 'user'])
     def configure(self, *args, **kwargs):
         self.install_from_upstream()
+
 
 vagrant = VagrantSatchel()

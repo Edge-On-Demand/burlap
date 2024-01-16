@@ -7,7 +7,7 @@ This module provides tools for creating MySQL users and databases.
 """
 import os
 import re
-from pipes import quote
+from shlex import quote
 
 from fabric.api import env, hide, puts, run, settings, runs_once
 from fabric.colors import red, green
@@ -21,6 +21,7 @@ from burlap.utils import run_as_root
 MYSQLD_SAFE = 'mysqld_safe'
 MYSQLADMIN = 'mysqladmin'
 DPKG = 'dpkg'
+
 
 class MySQLSatchel(DatabaseSatchel):
 
@@ -68,22 +69,22 @@ class MySQLSatchel(DatabaseSatchel):
         self.env.assumed_version = '5.7'
 
         self.env.service_commands = {
-            START:{
+            START: {
                 UBUNTU: 'service mysql start',
             },
-            STOP:{
+            STOP: {
                 UBUNTU: 'service mysql stop',
             },
-            ENABLE:{
+            ENABLE: {
                 UBUNTU: 'update-rc.d mysql defaults',
             },
-            DISABLE:{
+            DISABLE: {
                 UBUNTU: 'update-rc.d -f mysql remove',
             },
-            RESTART:{
+            RESTART: {
                 UBUNTU: 'service mysql restart',
             },
-            STATUS:{
+            STATUS: {
                 UBUNTU: 'service mysql status',
             },
         }
@@ -136,8 +137,10 @@ class MySQLSatchel(DatabaseSatchel):
     @task
     def set_collation(self, name=None, site=None):
         r = self.database_renderer(name=name, site=site)
-        r.run("mysql -v -h {db_host} -u {db_root_username} -p'{db_root_password}' "
-            "--execute='ALTER DATABASE {db_name} CHARACTER SET {character_set} COLLATE {collate};'")
+        r.run(
+            "mysql -v -h {db_host} -u {db_root_username} -p'{db_root_password}' "
+            "--execute='ALTER DATABASE {db_name} CHARACTER SET {character_set} COLLATE {collate};'"
+        )
 
     @task
     def set_collation_all(self, name=None, site=None):
@@ -147,11 +150,10 @@ class MySQLSatchel(DatabaseSatchel):
     @task
     def set_max_packet_size(self, name=None, site=None):
         r = self.database_renderer(name=name, site=site)
-        r.run(
-            ('mysql -v -h {db_host} -D {db_name} -u {db_root_username} '
-            '-p"{db_root_password}" --execute="SET global '
-            'net_buffer_length={net_buffer_length}; SET global '
-            'max_allowed_packet={max_allowed_packet};"') % env)
+        r.run('mysql -v -h {db_host} -D {db_name} -u {db_root_username} ' \
+            '-p"{db_root_password}" --execute="SET global ' \
+            'net_buffer_length={net_buffer_length}; SET global ' \
+            'max_allowed_packet={max_allowed_packet};"')
 
     def packager_pre_configure(self):
         """
@@ -188,7 +190,7 @@ class MySQLSatchel(DatabaseSatchel):
 
     @task
     def set_root_password(self, password=None, method=None, **kwargs):
-        method = method or MYSQLD_SAFE#|'mysqladmin'#|'mysqld_safe'|'dpkg'
+        method = method or MYSQLD_SAFE #|'mysqladmin'#|'mysqld_safe'|'dpkg'
         v = self.get_mysql_version()
         v = tuple(map(int, v.split('.')))
         self.vprint('mysql version:', v)
@@ -233,10 +235,12 @@ class MySQLSatchel(DatabaseSatchel):
             r.run('sleep 5')
             # Work in Ubuntu 16/MySQL 5.7 but not Ubuntu 14/MySQL 5.6?
             with settings(warn_only=True):
-                r.run("mysql -uroot --execute=\""
+                r.run(
+                    "mysql -uroot --execute=\""
                     "use mysql; "
                     "update user set authentication_string=PASSWORD('{root_password}') where User='root'; "
-                    "flush privileges;\"")
+                    "flush privileges;\""
+                )
             # Work in Ubuntu 14/MySQL 5.6 but not Ubuntu 16/MySQL 5.7?
             with settings(warn_only=True):
                 r.sudo('mysql --execute="USE mysql; SET PASSWORD FOR \'root\'@\'localhost\' = PASSWORD(\'{root_password}\'); FLUSH PRIVILEGES;"')
@@ -281,15 +285,14 @@ class MySQLSatchel(DatabaseSatchel):
         Drops all views.
         """
         r = self.database_renderer
-        result = r.sudo("mysql --batch -v -h {db_host} "
+        result = r.sudo(
+            "mysql --batch -v -h {db_host} "
             #"-u {db_root_username} -p'{db_root_password}' "
             "-u {db_user} -p'{db_password}' "
             "--execute=\"SELECT GROUP_CONCAT(CONCAT(TABLE_SCHEMA,'.',table_name) SEPARATOR ', ') AS views "
-            "FROM INFORMATION_SCHEMA.views WHERE TABLE_SCHEMA = '{db_name}' ORDER BY table_name DESC;\"")
-        result = re.findall(
-            r'^views[\s\t\r\n]+(.*)',
-            result,
-            flags=re.IGNORECASE|re.DOTALL|re.MULTILINE)
+            "FROM INFORMATION_SCHEMA.views WHERE TABLE_SCHEMA = '{db_name}' ORDER BY table_name DESC;\""
+        )
+        result = re.findall(r'^views[\s\t\r\n]+(.*)', result, flags=re.IGNORECASE | re.DOTALL | re.MULTILINE)
         if not result:
             return
         r.env.db_view_list = result[0]
@@ -398,10 +401,10 @@ class MySQLSatchel(DatabaseSatchel):
             if not self.dryrun:
                 assert os.path.isfile(r.env.dump_fn), missing_local_dump_error
             #if self.verbose:
-                #print('Uploading MySQL database snapshot...')
+            #print('Uploading MySQL database snapshot...')
             #r.put(
-                #local_path=r.env.dump_fn,
-                #remote_path=r.env.remote_dump_fn)
+            #local_path=r.env.dump_fn,
+            #remote_path=r.env.remote_dump_fn)
             self.upload_snapshot(name=name, site=site)
 
         if self.is_local and not prep_only and not self.dryrun:
@@ -418,12 +421,14 @@ class MySQLSatchel(DatabaseSatchel):
 
         # Create user
         with settings(warn_only=True):
-            r.run("mysql -v -h {db_host} -u {db_root_username} -p'{db_root_password}' --execute=\"DROP USER '{db_user}'@'%%';"
+            r.run("mysql -v -h {db_host} -u {db_root_username} -p'{db_root_password}' --execute=\"DROP USER '{db_user}'@'%%';" \
                 "FLUSH PRIVILEGES;\"")
         with settings(warn_only=True):
-            r.run("mysql -v -h {db_host} -u {db_root_username} -p'{db_root_password}' --execute=\"CREATE USER '{db_user}'@'%%' IDENTIFIED BY '{db_password}'; "
+            r.run(
+                "mysql -v -h {db_host} -u {db_root_username} -p'{db_root_password}' --execute=\"CREATE USER '{db_user}'@'%%' IDENTIFIED BY '{db_password}'; "
                 "GRANT ALL PRIVILEGES ON *.* TO '{db_user}'@'%%' WITH GRANT OPTION; "
-                "FLUSH PRIVILEGES;\"")
+                "FLUSH PRIVILEGES;\""
+            )
         self.set_collation(name=name, site=site)
 
         self.set_max_packet_size(name=name, site=site)
@@ -488,12 +493,15 @@ class MySQLSatchel(DatabaseSatchel):
             r.sudo("sed -i 's/127.0.0.1/0.0.0.0/g' {conf}")
 
             # Enable root logins from remote connections.
-            r.sudo('mysql -u {db_root_username} -p"{db_root_password}" '
+            r.sudo(
+                'mysql -u {db_root_username} -p"{db_root_password}" '
                 '--execute="USE mysql; '
                 'GRANT ALL ON *.* to {db_root_username}@\'%%\' IDENTIFIED BY \'{db_root_password}\'; '
-                'FLUSH PRIVILEGES;"')
+                'FLUSH PRIVILEGES;"'
+            )
 
             self.restart()
+
 
 class MySQLClientSatchel(Satchel):
 
@@ -511,8 +519,10 @@ class MySQLClientSatchel(Satchel):
     def configure(self, *args, **kwargs):
         pass
 
+
 mysql = MySQLSatchel()
 mysqlclient = MySQLClientSatchel()
+
 
 def query(query, use_sudo=True, **kwargs):
     """
@@ -534,10 +544,10 @@ def query(query, use_sudo=True, **kwargs):
         options.append('--password=%s' % quote(password))
     options = ' '.join(options)
 
-    return func('mysql %(options)s --execute=%(query)s' % {
-        'options': options,
-        'query': quote(query),
-    })
+    return func('mysql {options} --execute={query}'.format(
+        options=options,
+        query=quote(query),
+    ))
 
 
 def user_exists(name, host='localhost', **kwargs):
@@ -545,14 +555,16 @@ def user_exists(name, host='localhost', **kwargs):
     Check if a MySQL user exists.
     """
     with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
-        res = query("""
+        res = query(
+            """
             use mysql;
             SELECT COUNT(*) FROM user
-                WHERE User = '%(name)s' AND Host = '%(host)s';
-            """ % {
-                'name': name,
-                'host': host,
-            }, **kwargs)
+                WHERE User = '{name}' AND Host = '{host}';
+            """.format(
+                name=name,
+                host=host,
+            ), **kwargs
+        )
     return res.succeeded and (int(res) == 1)
 
 
@@ -570,11 +582,7 @@ def create_user(name, password, host='localhost', **kwargs):
 
     """
     with settings(hide('running')):
-        query("CREATE USER '%(name)s'@'%(host)s' IDENTIFIED BY '%(password)s';" % {
-            'name': name,
-            'password': password,
-            'host': host
-        }, **kwargs)
+        query(f"CREATE USER '{name}'@'{host}' IDENTIFIED BY '{password}';", **kwargs)
     puts("Created MySQL user '%s'." % name)
 
 
@@ -583,15 +591,12 @@ def database_exists(name, **kwargs):
     Check if a MySQL database exists.
     """
     with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
-        res = query("SHOW DATABASES LIKE '%(name)s';" % {
-            'name': name
-        }, **kwargs)
+        res = query(f"SHOW DATABASES LIKE '{name}';", **kwargs)
 
     return res.succeeded and (res == name)
 
 
-def create_database(name, owner=None, owner_host='localhost', charset='utf8',
-                    collate='utf8_general_ci', **kwargs):
+def create_database(name, owner=None, owner_host='localhost', charset='utf8', collate='utf8_general_ci', **kwargs):
     """
     Create a MySQL database.
 
@@ -606,17 +611,9 @@ def create_database(name, owner=None, owner_host='localhost', charset='utf8',
     """
     with settings(hide('running')):
 
-        query("CREATE DATABASE %(name)s CHARACTER SET %(charset)s COLLATE %(collate)s;" % {
-            'name': name,
-            'charset': charset,
-            'collate': collate
-        }, **kwargs)
+        query(f"CREATE DATABASE {name} CHARACTER SET {charset} COLLATE {collate};", **kwargs)
 
         if owner:
-            query("GRANT ALL PRIVILEGES ON %(name)s.* TO '%(owner)s'@'%(owner_host)s' WITH GRANT OPTION;" % {
-                'name': name,
-                'owner': owner,
-                'owner_host': owner_host
-            }, **kwargs)
+            query(f"GRANT ALL PRIVILEGES ON {name}.* TO '{owner}'@'{owner_host}' WITH GRANT OPTION;", **kwargs)
 
     puts("Created MySQL database '%s'." % name)

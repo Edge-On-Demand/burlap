@@ -6,10 +6,10 @@
 #   tox -c tox-full.ini -- -s burlap/tests/test_common.py::CommonTests::test_iter_sites
 #
 set -e
-[ -d .env ] && rm -Rf .env
-python3.12 -m venv .env
+if [ ! -d .env ]; then
+    ./make_dev_env.sh
+fi
 . .env/bin/activate
-pip install -r requirements-test.txt
 ./pep8.sh
 rm -Rf ./burlap/*.pyc
 time tox -c tox-full.ini

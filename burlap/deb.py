@@ -8,14 +8,11 @@ and repositories.
 """
 from fabric.api import hide, run, settings
 
-import six
-
 from burlap.utils import run_as_root
 from burlap.files import file # pylint: disable=redefined-builtin
 
 getmtime = file.getmtime
 is_file = file.is_file
-
 
 MANAGER = 'DEBIAN_FRONTEND=noninteractive apt-get'
 
@@ -25,7 +22,7 @@ def update_index(quiet=True):
     Update APT package definitions.
     """
     options = "--quiet --quiet" if quiet else ""
-    run_as_root("%s %s update" % (MANAGER, options))
+    run_as_root(f"{MANAGER} {options} update")
 
 
 def upgrade(safe=True):
@@ -89,7 +86,7 @@ def install(packages, update=False, options=None, version=None):
         version = ''
     if version and not isinstance(packages, list):
         version = '=' + version
-    if not isinstance(packages, six.string_types):
+    if not isinstance(packages, str):
         packages = " ".join(packages)
     options.append("--quiet")
     options.append("--assume-yes")
@@ -111,7 +108,7 @@ def uninstall(packages, purge=False, options=None):
     command = "purge" if purge else "remove"
     if options is None:
         options = []
-    if not isinstance(packages, six.string_types):
+    if not isinstance(packages, str):
         packages = " ".join(packages)
     options.append("--assume-yes")
     options = " ".join(options)
@@ -150,10 +147,10 @@ def get_selections():
     """
     with settings(hide('stdout')):
         res = run_as_root('dpkg --get-selections')
-    selections = dict()
+    selections = {}
     for line in res.splitlines():
         package, status = line.split()
-        selections.setdefault(status, list()).append(package)
+        selections.setdefault(status, []).append(package)
     return selections
 
 

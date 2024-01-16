@@ -522,8 +522,8 @@ class ApacheSatchel(ServiceSatchel):
             r.sudo('mv /etc/modsecurity/modsecurity_crs_10_setup.conf.example  /etc/modsecurity/modsecurity_crs_10_setup.conf')
 
             r.sudo('rm -f /etc/modsecurity/activated_rules/*')
-            r.sudo('cd /etc/modsecurity/base_rules; ' 'for f in * ; do ln -s /etc/modsecurity/base_rules/$f /etc/modsecurity/activated_rules/$f ; done')
-            r.sudo('cd /etc/modsecurity/optional_rules; ' 'for f in * ; do ln -s /etc/modsecurity/optional_rules/$f /etc/modsecurity/activated_rules/$f ; done')
+            r.sudo('cd /etc/modsecurity/base_rules; for f in * ; do ln -s /etc/modsecurity/base_rules/$f /etc/modsecurity/activated_rules/$f ; done')
+            r.sudo('cd /etc/modsecurity/optional_rules; for f in * ; do ln -s /etc/modsecurity/optional_rules/$f /etc/modsecurity/activated_rules/$f ; done')
 
             r.env.httpd_conf_append.append('Include "/etc/modsecurity/activated_rules/*.conf"')
 

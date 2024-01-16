@@ -8,20 +8,17 @@ os.environ['BURLAP_NO_LOAD'] = '1'
 
 import burlap # pylint: disable=wrong-import-position
 
-read_md = lambda f: open(f).read()
+
+def read_md(f):
+    with open(f, encoding='utf8') as fin:
+        return fin.read()
+
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
-def read(filename):
-    path = os.path.join(os.path.dirname(__file__), filename)
-    with open(path, 'rb') as fin:
-        text = fin.read().decode('utf-8')
-    return text
-
-
 def get_reqs(fn):
-    return [_.strip() for _ in open(os.path.join(CURRENT_DIR, fn)).readlines() if _.strip() and not _.strip().startswith('#')]
+    return [_.strip() for _ in open(os.path.join(CURRENT_DIR, fn), encoding='utf8').readlines() if _.strip() and not _.strip().startswith('#')]
 
 
 class Tox(TestCommand):

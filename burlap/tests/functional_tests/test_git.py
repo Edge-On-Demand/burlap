@@ -9,6 +9,7 @@ from burlap.deploy import deploy as deploy_satchel
 #from burlap.deploy import thumbprint, clear_fs_cache, delete_plan_data_dir
 #from burlap.packager import packager
 
+
 class GitTests(TestCase):
 
     def test_hooks(self):
@@ -40,16 +41,16 @@ class GitTests(TestCase):
         print('added_hooks:', added_hooks)
         assert added_hooks == {'/tmp/mygithookrepo': ['git/post-checkout']}
         print('removed_hooks:', removed_hooks)
-        assert removed_hooks == {}
+        assert not removed_hooks
 
         print('Installing git hooks...')
         git.clear_local_renderer()
         git.configure()
         deploy_satchel.purge()
-        print('-'*80)
+        print('-' * 80)
         print('Thumbprinting...')
         #thumbprint(components=git.name)
         deploy_satchel.fake(components=git.name)
-        print('-'*80)
+        print('-' * 80)
 
         assert exists('/tmp/mygithookrepo/.git/hooks/post-checkout')

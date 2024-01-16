@@ -25,7 +25,7 @@ class PipTests(TestCase):
 
                 # Create requirements file.
                 os.makedirs('roles/all')
-                with open('roles/all/pip-requirements.txt', 'w') as fout:
+                with open('roles/all/pip-requirements.txt', 'w', encoding='utf8') as fout:
                     print('PyYAML\n', file=fout)
 
                 # Install without the quiet flag.

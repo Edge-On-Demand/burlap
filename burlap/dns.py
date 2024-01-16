@@ -95,7 +95,7 @@ class DNSSatchel(Satchel):
             if backend not in BACKENDS:
                 raise NotImplementedError('Unsupported backend: %s' % backend)
             logger.info('Processing zone file %s for domain %s.', zone_file, domain)
-            zone_data = open(zone_file).read()
+            zone_data = open(zone_file, encoding='utf8').read()
             zone_data = parse_zone_file(zone_data)
             if self.verbose:
                 pprint(dict(zone_data), indent=4)
@@ -117,7 +117,8 @@ class DNSSatchel(Satchel):
         manifest['zone_files'] = {}
         for zone_data in r.env.zones:
             zone_file = zone_data['file']
-            manifest['zone_files'][zone_file] = open(zone_file).read()
+            with open(zone_file, encoding='utf8') as fin:
+                manifest['zone_files'][zone_file] = fin.read()
         return manifest
 
     @task

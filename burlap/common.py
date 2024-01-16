@@ -287,7 +287,6 @@ def add_class_methods_as_module_level_functions_for_fabric(instance, module_name
     can find and call them. Call this at the bottom of a module after
     the class definition.
     '''
-    import imp
     from .decorators import task_or_dryrun
 
     # get the module as an object
@@ -1438,7 +1437,7 @@ class Satchel:
         # OS: [package1, package2, ...],
         req_packages1 = self.required_system_packages
         if req_packages1:
-            deprecation('The required_system_packages attribute is deprecated, ' 'use the packager_system_packages property instead.')
+            deprecation('The required_system_packages attribute is deprecated, use the packager_system_packages property instead.')
 
         # Lookup new package list.
         # OS: [package1, package2, ...],
@@ -1543,7 +1542,7 @@ class Satchel:
                 fout.close()
         else:
             if fn:
-                with open(fn, 'w') as fout:
+                with open(fn, 'w', encoding='utf8') as fout:
                     fout.write(content)
             else:
                 fd, fn = tempfile.mkstemp()
@@ -2231,7 +2230,7 @@ def write_temp_file_or_dryrun(content, *args, **kwargs):
             print(cmd)
     else:
         fd, tmp_fn = tempfile.mkstemp()
-        with open(tmp_fn, 'w') as fout:
+        with open(tmp_fn, 'w', encoding='utf8') as fout:
             fout.write(content)
     return tmp_fn
 
@@ -2705,7 +2704,7 @@ def find_template(template):
 
 def get_template_contents(template):
     final_fqfn = find_template(template)
-    return open(final_fqfn).read()
+    return open(final_fqfn, encoding='utf8').read()
 
 
 def render_to_string(template, extra=None):
@@ -2716,7 +2715,8 @@ def render_to_string(template, extra=None):
     extra = extra or {}
     final_fqfn = find_template(template)
     assert final_fqfn, 'Template not found: %s' % template
-    template_content = open(final_fqfn).read()
+    with open(final_fqfn, encoding='utf8') as fin:
+        template_content = fin.read()
     t = Template(template_content)
     if extra:
         context = env.copy()
@@ -2743,7 +2743,7 @@ def write_to_file(content, fn=None, **kwargs):
             print(cmd)
     else:
         if fn:
-            with open(fn, 'w') as fout:
+            with open(fn, 'w', encoding='utf8') as fout:
                 fout.write(content)
         else:
             with os.fdopen(fd, 'wt') as fout:
@@ -2950,12 +2950,9 @@ def get_hosts_for_site(site=None):
     site = site or env.SITE
     hosts = set()
     for hostname, _sites in env.available_sites_by_host.items():
-        #         print('checking hostname:',hostname, _sites)
         for _site in _sites:
             if _site == site:
-                #                 print( '_site:',_site)
                 host_ip = get_host_ip(hostname)
-                #                 print( 'host_ip:',host_ip)
                 if host_ip:
                     hosts.add(host_ip)
                     break
@@ -2964,8 +2961,3 @@ def get_hosts_for_site(site=None):
 
 def getoutput(cmd):
     return subprocess.check_output(cmd, shell=True)
-
-
-#     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-#     out, err = process.communicate()
-#     return out

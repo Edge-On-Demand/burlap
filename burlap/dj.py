@@ -303,7 +303,8 @@ class DjangoSatchel(Satchel):
                     continue
                 if not path.lower().endswith('.sql'):
                     continue
-                content = open(path).read()
+                with open(path, encoding='utf8') as fin:
+                    content = fin.read()
                 matches = re.findall(r'[\s\t]+VIEW[\s\t]+([a-zA-Z0-9_]{3,})', content, flags=re.IGNORECASE)
                 view_name = ''
                 if matches:
@@ -413,7 +414,8 @@ class DjangoSatchel(Satchel):
             try:
                 self.set_db(site=_site)
                 r.env.SITE = _site
-                r.sudo('export SITE={SITE}; export ROLE={ROLE}; ' 'cd {project_dir}; ' '{manage_cmd} loaddata {_loaddata_path}')
+                r.sudo('export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; ' \
+                    '{manage_cmd} loaddata {_loaddata_path}')
             except KeyError:
                 pass
 
@@ -626,7 +628,8 @@ class DjangoSatchel(Satchel):
             r.env.shell_host_string = '{user}@{host_string}'
         r.env.shell_default_dir = self.genv.shell_default_dir_template
         r.env.shell_interactive_djshell_str = self.genv.interactive_shell_template
-        r.local('ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} ' '"{shell_interactive_djshell_str}"')
+        r.local('ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} ' \
+            '"{shell_interactive_djshell_str}"')
 
     @task
     def dbshell(self, database=None):
@@ -643,7 +646,8 @@ class DjangoSatchel(Satchel):
         r.env.shell_default_dir = self.genv.shell_default_dir_template
         r.env.shell_interactive_dbshell_str = self.genv.interactive_dbshell_template
         r.env.database_arg = f' --database={database}' if database else ''
-        r.local('ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} ' '"{shell_interactive_dbshell_str}{database_arg}"')
+        r.local('ssh -t -o StrictHostKeyChecking=no -i {key_filename} {shell_host_string} ' \
+            '"{shell_interactive_dbshell_str}{database_arg}"')
 
     @task
     def syncdb(self, site=None, all=0, database=None, ignore_errors=1): # pylint: disable=redefined-builtin
@@ -675,15 +679,15 @@ class DjangoSatchel(Satchel):
                 if post_south:
                     if use_run_syncdb:
                         r.run_or_local(
-                            'export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; '
+                            'export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; ' \
                             '{manage_cmd} migrate --run-syncdb --noinput {db_syncdb_database}'
                         )
                     else:
                         # Between Django>=1.7,<1.9 we can only do a regular migrate, no true syncdb.
-                        r.run_or_local('export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; ' '{manage_cmd} migrate --noinput {db_syncdb_database}')
+                        r.run_or_local('export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; {manage_cmd} migrate --noinput {db_syncdb_database}')
                 else:
                     r.run_or_local(
-                        'export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; '
+                        'export SITE={SITE}; export ROLE={ROLE}; cd {project_dir}; ' \
                         '{manage_cmd} syncdb --noinput {db_syncdb_all_flag} {db_syncdb_database}'
                     )
 
@@ -757,7 +761,7 @@ class DjangoSatchel(Satchel):
             for _app in migrate_apps:
                 # In cases where we're migrating built-in apps or apps with dotted names
                 # e.g. django.contrib.auth, extract the name used for the migrate command.
-                r.env.migrate_app = _app.split('.')[-1]
+                r.env.migrate_app = _app.rsplit('.', maxsplit=1)[-1]
                 self.vprint('project_dir1:', r.env.project_dir, r.genv.get('dj_project_dir'), r.genv.get('project_dir'))
                 r.env.SITE = _site
                 with self.settings(warn_only=ignore_errors):

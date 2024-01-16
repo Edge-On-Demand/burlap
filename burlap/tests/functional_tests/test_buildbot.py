@@ -12,6 +12,7 @@ from fabric.contrib.files import exists
 from burlap.buildbot import buildbot
 from burlap.tests.functional_tests.base import TestCase
 
+
 class BuildbotTests(TestCase):
 
     def test_cron_check(self):
@@ -53,9 +54,9 @@ class BuildbotTests(TestCase):
             deploy_from_dir = tempfile.mkdtemp()
             print('deploy_from_dir:', deploy_from_dir)
             os.makedirs(os.path.join(deploy_from_dir, 'all'))
-            with open(os.path.join(deploy_from_dir, 'all', 'apt-requirements.txt'), 'w') as fout:
+            with open(os.path.join(deploy_from_dir, 'all', 'apt-requirements.txt'), 'w', encoding='utf8') as fout:
                 fout.write('python3-dev\n')
-            with open(os.path.join(deploy_from_dir, 'all', 'pip-requirements.txt'), 'w') as fout:
+            with open(os.path.join(deploy_from_dir, 'all', 'pip-requirements.txt'), 'w', encoding='utf8') as fout:
                 fout.write('buildbot[bundle]==0.9.5\n')
 
             # Prevent buildbot from upgrading and rebooting the server.
@@ -80,6 +81,8 @@ class BuildbotTests(TestCase):
             buildbot.env.cron_check_enabled = True
             buildbot.env.cron_check_worker_pid_path = '/usr/local/myproject/src/buildbot/worker/twistd.pid'
             buildbot.verbose = True
+
+
 #             buildbot.configure()#TODO
 
 #             assert exists(buildbot.env.cron_check_command_path)

@@ -10,7 +10,7 @@ Environment variables:
     BURLAP_TEST_REUSE_VM
 
 """
-from pipes import quote
+from shlex import quote
 import logging
 import os
 import sys
@@ -21,7 +21,7 @@ import pytest
 from fabric.api import env, hide, lcd, local, settings
 from fabric.state import connections
 
-from mock import patch
+from unittest.mock import patch
 
 from burlap.vagrant import vagrant
 
@@ -60,7 +60,7 @@ def setup_package():
             _stop_vagrant_machine()
         _fix_home_directory()
         _init_vagrant_machine(vagrant_box)
-#         with settings(warn_only=True):
+        #         with settings(warn_only=True):
         _start_vagrant_machine(vagrant_provider)
         _target_vagrant_machine()
         _set_optional_http_proxy()
@@ -118,7 +118,7 @@ Vagrant.configure(2) do |config|
 
 end
 """ % base_box
-    with open(path, 'w') as vagrantfile:
+    with open(path, 'w', encoding='utf8') as vagrantfile:
         vagrantfile.write(contents)
 
 
@@ -185,7 +185,7 @@ def _vagrant_ssh_config():
 
 def _set_fabric_env(host, port, user, key_filename):
     if port and str(port) != '22':
-        env.host_string = env.host = "%s:%s" % (host, port)
+        env.host_string = env.host = f"{host}:{port}"
     else:
         env.host_string = env.host = host
     env.hosts = [env.host_string]
