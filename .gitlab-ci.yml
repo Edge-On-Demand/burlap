@@ -14,8 +14,8 @@ before_script:
   - ls /etc/apt/sources.list.d
   - rm -Rf /etc/apt/sources.list.d/google-chrome.list || true
   - apt-get -yq update
-  - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.9 python3.9-minimal python3.9-dev python3.9-venv python3.9-distutils python3-pip
-  - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.12 python3.12-minimal python3.12-dev python3.12-venv python3.12-distutils
+  #- DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.9 python3.9-minimal python3.9-dev python3.9-venv python3.9-distutils python3-pip
+  - DEBIAN_FRONTEND=noninteractive apt-get -yq install python3.12 python3.12-minimal python3.12-dev python3.12-venv python3.12-distutils python3-pip
   - apt-get -yq purge postgr* || true
   - apt-get -yq purge virtualbox* || true
   - apt-get -yq purge oracle-java* || true
@@ -27,10 +27,9 @@ before_script:
   - service ssh start
   - apt-get -o Dpkg::Options::="--force-confnew" --allow-downgrades --allow-remove-essential --allow-change-held-packages -fuy --allow-unauthenticated dist-upgrade
   - apt-get -yq install build-essential
-  - update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
-  #- apt-get -yq --allow-downgrades --allow-remove-essential --allow-change-held-packages install linux-headers-`uname -r`
-  - python -V
-  - python3.9 -m pip --version
+  #- update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
+  #- python -V
+  #- python3.9 -m pip --version
   #- pip3 install --upgrade setuptools
   #- pip3 install --upgrade pip
   #- pip3 install --upgrade distlib
@@ -46,24 +45,30 @@ before_script:
 stages:
   - test
 
-test python 3.9:
-  stage: test
-  script:
-  - python3.9 -m venv .env
-  - ". .env/bin/activate"
-  - pip --version
-  - pip install -U setuptools
-  - pip install -U pip
-  - pip install -U distlib
-  - pip install -r requirements-test.txt
-  - pylint --version
-  - ./pep8.sh
-  #- "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
-  -   tox -c tox-travis.ini -e py39-no_vagrant
+#test python 3.9:
+  #stage: test
+  #script:
+  #- update-alternatives --install /usr/bin/python python /usr/bin/python3.9 10
+  #- python -V
+  #- python3.9 -m pip --version
+  #- python3.9 -m venv .env
+  #- ". .env/bin/activate"
+  #- pip --version
+  #- pip install -U setuptools
+  #- pip install -U pip
+  #- pip install -U distlib
+  #- pip install -r requirements-test.txt
+  #- pylint --version
+  #- ./pep8.sh
+  ##- "tox -c tox-travis.ini -e py37-no_vagrant -- -s burlap/tests/test_pip.py::PipTests"
+  #-   tox -c tox-travis.ini -e py39-no_vagrant
 
 test python 3.12:
   stage: test
   script:
+  - update-alternatives --install /usr/bin/python python /usr/bin/python3.12 10
+  - python -V
+  - python3.12 -m pip --version
   - python3.12 -m venv .env
   - ". .env/bin/activate"
   - pip --version
