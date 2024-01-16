@@ -69,3 +69,5 @@ docs/_build/
 /*.out
 /*.bak
 /.idea/
+
+api-token.txt
