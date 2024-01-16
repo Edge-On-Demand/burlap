@@ -30,7 +30,7 @@ VAGRANT_VERSION = vagrant.version()
 MIN_VAGRANT_VERSION = (1, 3)
 
 
-@pytest.yield_fixture(scope='session', autouse=True)
+@pytest.fixture(scope='session', autouse=True)
 def setup_package():
 
     # Setup.

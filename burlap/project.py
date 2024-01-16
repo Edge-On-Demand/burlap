@@ -230,25 +230,21 @@ class ProjectSatchel(ContainerSatchel):
         print('Initializing local development virtual environment...')
         os.system('python3 -m venv %s' % virtualenv_dir)
         if default_packages:
-            os.system('. %s/bin/activate' % virtualenv_dir)
             for package in default_packages:
-                cmd = 'pip install %s' % package
+                cmd = f'{virtualenv_dir}/pip install {package}'
                 print('cmd:', cmd)
                 assert not os.system(cmd)
-            os.system('deactivate')
 
         # Install burlap dependencies.
         burlap_pip_requirements = os.path.join(os.path.dirname(burlap.__file__), 'fixtures/requirements.txt')
         print('burlap_pip_requirements:', burlap_pip_requirements)
         assert os.path.exists(burlap_pip_requirements), 'Missing requirements file: %s' % burlap_pip_requirements
-        os.system('. %s/bin/activate' % virtualenv_dir)
         for package in open(burlap_pip_requirements, encoding='utf8').readlines():
             if not package.strip():
                 continue
-            cmd = 'pip install %s' % package
+            cmd = f'{virtualenv_dir}/pip install {package}'
             print('cmd:', cmd)
             assert not os.system(cmd)
-        os.system('deactivate')
 
         print('Adding bash setup...')
         open('setup.bash', 'w', encoding='utf8').write(self.render_to_string('burlap/setup.bash.template'))
