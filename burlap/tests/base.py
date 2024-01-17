@@ -64,7 +64,6 @@ class TestCase(unittest.TestCase):
         from burlap.deploy import deploy as deploy_satchel
 
         # Always print the current test name before the test.
-        # _, columns = map(int, os.popen('stty size', 'r').read().split()) # TODO:fix? broke in Ubuntu16+Python3
         columns = 80
         kwargs = dict(
             bar='#' * columns,
@@ -76,9 +75,7 @@ class TestCase(unittest.TestCase):
         self._env = env.copy()
 
         # Reset fabric state.
-        # print('setUp: initializing env...')
         init_env()
-        #deploy_init_env()
 
         if not env.host_string:
             env.host_string = 'localhost'
@@ -86,7 +83,6 @@ class TestCase(unittest.TestCase):
 
         # Save cwd.
         self._cwd = os.getcwd()
-        # print('cwd:', self._cwd)
 
         # Save burlap state.
         self._burlap_state = get_state()
@@ -124,7 +120,6 @@ class TestCase(unittest.TestCase):
         env.abort_on_prompts = True
         env.always_use_pty = False
 
-        # print('setUp: Purging deployments...')
         deploy_satchel.purge()
 
         super().setUp()

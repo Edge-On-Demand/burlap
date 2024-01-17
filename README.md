@@ -92,8 +92,12 @@ To run all tests:
     
 To run all tests on a specific environment:
 
-    tox -c tox-full.ini -e py39-ubuntu_18_04_64
+    tox -c tox-full.ini -e py312-ubuntu_22_04_64
 
 To run a specific test in a specific environment:
 
-    tox -c tox-full.ini -e py39-ubuntu_18_04_64 -- -s burlap/tests/functional_tests/test_md5.py::Md5Tests
+    tox -c tox-full.ini -e py312-ubuntu_22_04_64 -- -s <path_to_file>::<TestCaseName>::<test_name>
+
+e.g.
+
+    tox -c tox-full.ini -e py312-ubuntu_22_04_64 -- -s burlap/tests/test_apache.py::ApacheTests::test_diff

@@ -8,12 +8,12 @@ import time
 import importlib
 import warnings
 import glob
-import pipes
 import json
 import getpass
 import subprocess
 import uuid
 import inspect
+from shlex import quote
 from collections import namedtuple, OrderedDict
 from pprint import pprint
 from functools import partial
@@ -2098,13 +2098,13 @@ def get_hosts_retriever(s=None):
 
 def shellquote(s, singleline=True):
     if singleline:
-        s = pipes.quote(s)
+        s = quote(s)
         s = repr(s)
         s = re.sub(r'^u*[\"\']+', '', s)
         s = re.sub(r'[\"\']+$', '', s)
         s = '"%s"' % s
     else:
-        s = f'{pipes.quote(s)}'
+        s = f'{quote(s)}'
     return s
 
 

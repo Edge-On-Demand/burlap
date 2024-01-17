@@ -13,6 +13,12 @@ And then place at end of file:
 
     yourusername   ALL=(ALL) NOPASSWD: ALL
 
+Confirm this works by running:
+
+    ssh `whoami`@localhost
+    
+If you get a new shell, everything's working and you're ready to run tests. If you get a connection error, or are prompted for a password, something's not right.
+
 ## Using tox
 
 The preferred way to run tests is to use [tox](https://tox.readthedocs.org/en/latest/).

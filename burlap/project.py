@@ -170,6 +170,11 @@ class ProjectSatchel(ContainerSatchel):
     def set_defaults(self):
         pass
 
+    def run(self, cmd):
+        print('Running:', cmd)
+        ret = os.system(cmd)
+        return ret
+
     def update_settings(self, d, role, path='roles/{role}/settings.yaml'):
         """
         Writes a key/value pair to a settings file.
@@ -200,6 +205,8 @@ class ProjectSatchel(ContainerSatchel):
         default_roles = [_ for _ in roles.split(',') if _.strip()]
         default_components = [_.strip().lower() for _ in components.split(',') if _.strip()]
 
+        print('Using CWD:', os.getcwd())
+
         print('Creating folders...')
         md('roles/all')
         for _role in default_roles:
@@ -228,23 +235,16 @@ class ProjectSatchel(ContainerSatchel):
         open('fabfile.py', 'w', encoding='utf8').write(content.strip() + '\n')
 
         print('Initializing local development virtual environment...')
-        os.system('python3 -m venv %s' % virtualenv_dir)
+        self.run(f'python3 -m venv {virtualenv_dir}')
         if default_packages:
             for package in default_packages:
-                cmd = f'{virtualenv_dir}/pip install {package}'
-                print('cmd:', cmd)
-                assert not os.system(cmd)
+                assert not self.run(f'{virtualenv_dir}/bin/pip install {package}')
 
         # Install burlap dependencies.
         burlap_pip_requirements = os.path.join(os.path.dirname(burlap.__file__), 'fixtures/requirements.txt')
         print('burlap_pip_requirements:', burlap_pip_requirements)
         assert os.path.exists(burlap_pip_requirements), 'Missing requirements file: %s' % burlap_pip_requirements
-        for package in open(burlap_pip_requirements, encoding='utf8').readlines():
-            if not package.strip():
-                continue
-            cmd = f'{virtualenv_dir}/pip install {package}'
-            print('cmd:', cmd)
-            assert not os.system(cmd)
+        assert not self.run(f"{virtualenv_dir}/bin/pip install -r {burlap_pip_requirements}")
 
         print('Adding bash setup...')
         open('setup.bash', 'w', encoding='utf8').write(self.render_to_string('burlap/setup.bash.template'))
@@ -301,7 +301,7 @@ class ProjectSatchel(ContainerSatchel):
         ))
         if not os.path.isdir('satchels'):
             os.makedirs('satchels')
-            os.system('touch satchels/__init__.py')
+            self.run('touch satchels/__init__.py')
         satchel_fn = 'satchels/%s.py' % name_simple
         open(satchel_fn, 'w', encoding='utf8').write(content.strip() + '\n')
         print('Wrote %s.' % satchel_fn)

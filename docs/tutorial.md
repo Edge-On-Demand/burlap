@@ -125,6 +125,6 @@ Burlap provides a deployment mechanism via the `deploy.*` series of commands.
 
 To deploy all changes to a target role, run:
 
-    fab prod deploy.run
+    fab prod deploy.push
     
 This will first show a list of Satchels that have changes detected, and prompt you to confirm. If you select "yes", it will run the `configure` task on all the listed Satchels, and then record the current environment state for future comparison.

@@ -5,6 +5,7 @@ from burlap.tests.base import TestCase
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
+
 class DebugTests(TestCase):
 
     def setUp(self):
@@ -36,4 +37,7 @@ class DebugTests(TestCase):
         print('ret:', ret)
 
         ret = shell(command="echo 'hello3'")
+        print('ret:', ret)
+
+        ret = debug.run("echo 'hello4'")
         print('ret:', ret)
