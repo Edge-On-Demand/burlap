@@ -23,7 +23,7 @@ class DjTests(TestCase):
 
         src_dir = '/tmp/test_dj_migrate/src'
 
-        dj_version = [1, 10, 6]
+        dj_version = [4, 2, 7]
 
         d = '/tmp/test_dj_migrate'
         if os.path.isdir(d):

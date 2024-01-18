@@ -37,7 +37,7 @@ class PIPSatchel(Satchel):
         self.env.perms = '775'
         self.env.virtualenv_dir = '.env'
         self.env.requirements = 'pip-requirements.txt'
-        self.env.python_version = '3.9'
+        self.env.python_version = '3.12'
 
     @task
     def has_pip(self):
