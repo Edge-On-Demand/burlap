@@ -38,7 +38,7 @@ def init_dj(project_name, default_roles, virtualenv_dir='.env', version=None, **
     print('Initializing Django project...')
     if not os.path.isdir('src/%s' % site_name):
         print('Initializing base django project...')
-        os.system('. {}/bin/activate; django-admin.py startproject {} src; deactivate'.format(
+        os.system('. {}/bin/activate; django-admin startproject {} src; deactivate'.format(
             virtualenv_dir,
             site_name,
         ))
