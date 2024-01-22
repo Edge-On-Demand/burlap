@@ -8,6 +8,7 @@ import shutil
 import sys
 import traceback
 import glob
+import importlib
 from importlib import import_module
 from collections import defaultdict
 from functools import cmp_to_key
@@ -201,8 +202,7 @@ class DjangoSatchel(Satchel):
                     assert site == module.SITE, f'Unable to set SITE to "{site}" Instead it is set to "{module.SITE}".'
 
                 # Works as long as settings.py doesn't also reload anything.
-                import imp
-                imp.reload(module)
+                importlib.reload(module)
 
             except ImportError as e:
                 print(f'Warning: Could not import settings for site "{site}": {e}', file=_stdout)
