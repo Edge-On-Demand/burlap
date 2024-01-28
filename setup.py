@@ -74,6 +74,6 @@ setup(
     include_package_data=True,
     install_requires=get_reqs('burlap/fixtures/requirements.txt'),
     tests_require=get_reqs('requirements-test.txt'),
-    extras_require={'aws': ['boto3']},
+    extras_require={'aws': ['boto>=2.49.0']},
     cmdclass={'test': Tox},
 )
