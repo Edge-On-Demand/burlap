@@ -3,14 +3,8 @@ import sys
 import re
 import json
 
+import boto3
 from fabric.api import runs_once
-
-try:
-    import boto
-except ImportError:
-    boto = None
-
-import six
 
 from burlap.constants import *
 from burlap import Satchel
@@ -109,7 +103,7 @@ class S3Satchel(Satchel):
         if not _settings.AWS_STATIC_BUCKET_NAME:
             print('No static media bucket set.')
             return
-        if isinstance(paths, six.string_types):
+        if isinstance(paths, str):
             paths = paths.split(',')
         all_paths = list(map(str.strip, paths))
         i = 0
@@ -117,22 +111,25 @@ class S3Satchel(Satchel):
             paths = all_paths[i:i+1000]
             if not paths:
                 break
-            c = boto.connect_cloudfront(_settings.AWS_ACCESS_KEY_ID, _settings.AWS_SECRET_ACCESS_KEY)
-            rs = c.get_all_distributions()
+            cloudfront = boto3.client(
+                'cloudfront',
+                aws_access_key_id=_settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=_settings.AWS_SECRET_ACCESS_KEY
+            )
+            distributions = cloudfront.list_distributions()
             target_dist = None
-            for dist in rs:
-                print('Distribution:', dist.domain_name, dir(dist), dist.__dict__)
-                bucket_name = dist.origin.dns_name.split('.')[0]
+            for dist in distributions['DistributionList']['Items']:
+                bucket_name = dist['Origins']['Items'][0]['DomainName'].split('.')[0]
                 if bucket_name == _settings.AWS_STATIC_BUCKET_NAME:
                     target_dist = dist
                     break
             if not target_dist:
                 raise Exception(('Target distribution %s could not be found in the AWS account.') % (_settings.AWS_STATIC_BUCKET_NAME,))
-            print('Using distribution %s associated with origin %s.' % (target_dist.id, _settings.AWS_STATIC_BUCKET_NAME))
+            print('Using distribution %s associated with origin %s.' % (target_dist['Id'], _settings.AWS_STATIC_BUCKET_NAME))
             if self.dryrun:
-                print('aws cloudfront create-invalidation --distribution-id=%s --paths=%s' % (target_dist.id, paths))
+                print('aws cloudfront create-invalidation --distribution-id=%s --paths=%s' % (target_dist['Id'], paths))
             else:
-                inval_req = c.create_invalidation_request(target_dist.id, paths)
+                inval_req = cloudfront.create_invalidation_request(target_dist['Id'], paths)
                 print('Issue invalidation request %s.' % (inval_req,))
             i += 1000
 
@@ -145,16 +142,15 @@ class S3Satchel(Satchel):
 
             fab local s3.get_or_create_bucket:mybucket
         """
-        from boto.s3 import connection # pylint: disable=import-outside-toplevel
         if self.dryrun:
             print('boto.connect_s3().create_bucket(%s)' % repr(name))
         else:
-            conn = connection.S3Connection(
-                self.genv.aws_access_key_id,
-                self.genv.aws_secret_access_key
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=self.genv.aws_access_key_id,
+                aws_secret_access_key=self.genv.aws_secret_access_key
             )
-            bucket = conn.create_bucket(name)
-            return bucket
+            return s3_client.create_bucket(Bucket=name)
 
     @task
     def list_bucket_sizes(self):

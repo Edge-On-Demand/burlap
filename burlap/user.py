@@ -5,8 +5,6 @@ import string
 
 from fabric.api import hide
 
-import six
-
 from burlap.constants import *
 from burlap import Satchel
 from burlap.decorators import task
@@ -124,7 +122,7 @@ class UserSatchel(Satchel):
 
         r = self.local_renderer
 
-        if isinstance(groups, six.string_types):
+        if isinstance(groups, str):
             groups = [_.strip() for _ in groups.split(',') if _.strip()]
         for group in groups:
             r.env.username = user

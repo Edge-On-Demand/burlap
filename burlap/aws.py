@@ -1,5 +1,7 @@
 import os
 
+import boto3
+
 from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
@@ -139,14 +141,14 @@ class RDSSatchel(Satchel):
 
     @task
     def list_instances(self):
-        import boto.rds
-        conn = boto.rds.connect_to_region(
-            self.genv.vm_ec2_region,
+        rds = boto3.client(
+            'rds',
             aws_access_key_id=self.genv.vm_ec2_aws_access_key_id,
             aws_secret_access_key=self.genv.vm_ec2_aws_secret_access_key,
+            region_name=self.genv.vm_ec2_region
         )
-        for value in conn.get_all_dbinstances():
-            print(value, value.engine, value.engine_version)
+        for instance in rds.describe_db_instances()['DBInstances']:
+            print(instance['DBInstanceIdentifier'], instance['Engine'], instance['EngineVersion'])
 
     @task(precursors=['packager', 'user'])
     def configure(self):
