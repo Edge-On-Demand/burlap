@@ -3,7 +3,6 @@ import socket
 from pprint import pprint
 
 import boto3
-import botocore
 
 from fabric.api import (
     env,

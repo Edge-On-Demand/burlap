@@ -1,5 +1,3 @@
-import time
-
 from burlap.constants import *
 from burlap import Satchel
 from burlap.decorators import task
