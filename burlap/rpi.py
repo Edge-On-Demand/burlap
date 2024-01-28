@@ -7,8 +7,6 @@ Tools for configuring software and features specific to a Raspberry Pi.
 import os
 import getpass
 
-import six
-
 from burlap import Satchel
 from burlap.constants import *
 from burlap.decorators import task
@@ -142,7 +140,7 @@ class RaspberryPiSatchel(Satchel):
 
         yes = int(yes)
         device_question = 'SD card present at %s? ' % self.env.sd_device
-        if not yes and not six.moves.input(device_question).lower().startswith('y'):
+        if not yes and not input(device_question).lower().startswith('y'):
             return
 
         r = self.local_renderer
@@ -193,7 +191,7 @@ class RaspberryPiSatchel(Satchel):
 
         if not self.dryrun:
             device_question = 'SD card present at %s? ' % self.env.sd_device
-            inp = six.moves.input(device_question).strip()
+            inp = input(device_question).strip()
             print('inp:', inp)
             if not yes and inp and not inp.lower().startswith('y'):
                 return

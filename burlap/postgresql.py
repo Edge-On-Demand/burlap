@@ -7,8 +7,6 @@ This module provides tools for creating PostgreSQL users and databases.
 """
 import os
 
-import six
-
 from fabric.api import cd, hide, sudo, settings
 
 from burlap import Satchel
@@ -425,7 +423,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
         ret = self.execute(
             "CREATE DATABASE {db_name} WITH OWNER={db_user} ENCODING='{encoding}' LC_CTYPE='{locale}' LC_COLLATE='{locale}';",
             name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
-        if isinstance(ret, six.string_types) and 'ERROR:' in ret and 'already exists' not in ret:
+        if isinstance(ret, str) and 'ERROR:' in ret and 'already exists' not in ret:
             raise Exception('Error creating database: %s' % ret)
 
         if r.env.schema_mt:

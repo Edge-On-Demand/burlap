@@ -2,7 +2,8 @@ import os
 import socket
 from pprint import pprint
 
-import six
+import boto3
+import botocore
 
 from fabric.api import (
     env,
@@ -14,11 +15,6 @@ from burlap import common
 from burlap import constants as c
 from burlap.decorators import task_or_dryrun
 
-try:
-    import boto
-    import boto.ec2
-except ImportError:
-    boto = None
 
 EC2 = 'ec2'
 KVM = 'kvm'
@@ -97,23 +93,16 @@ def translate_ec2_hostname(hostname):
 env.hostname_translators[EC2] = translate_ec2_hostname
 
 def get_ec2_connection():
-    conn = boto.ec2.connect_to_region(
-        #env.vm_ec2_zone,
-        env.vm_ec2_region,
+    return boto3.resource(
+        'ec2',
         aws_access_key_id=env.vm_ec2_aws_access_key_id,
         aws_secret_access_key=env.vm_ec2_aws_secret_access_key,
+        region_name=env.vm_ec2_region
     )
-    assert conn, 'Unable to create EC2 connection with region %s and access key %s.' % (env.vm_ec2_region, env.vm_ec2_aws_access_key_id)
-    return conn
-
-def get_all_ec2_instances(instance_ids=None):
-    conn = get_ec2_connection()
-    #return sum(map(lambda r: r.instances, conn.get_all_instances(instance_ids=instance_ids)), [])
-    return sum([r.instances for r in conn.get_all_instances(instance_ids=instance_ids)], [])
 
 def get_all_running_ec2_instances():
-    #instances = filter(lambda i: i.state == 'running', get_all_ec2_instances())
-    instances = [i for i in get_all_ec2_instances() if i.state == 'running']
+    ec2 = get_ec2_connection()
+    instances = [i for i in ec2.instances.all() if i.state['Name'] == 'running']
     instances.reverse()
     return instances
 
@@ -144,9 +133,13 @@ def list_instances(show=1, name=None, group=None, release=None, except_release=N
         if verbose:
             print('Checking EC2...')
         for instance in get_all_running_ec2_instances():
-            name = instance.tags.get(env.vm_name_tag)
-            group = instance.tags.get(env.vm_group_tag)
-            release = instance.tags.get(env.vm_release_tag)
+            for tag in instance.tags:
+                if tag['Key'] == env.vm_name_tag:
+                    name = tag['Value']
+                if tag['Key'] == env.vm_group_tag:
+                    group = tag['Value']
+                if tag['Key'] == env.vm_release_tag:
+                    release = tag['Value']
             if env.vm_group and env.vm_group != group:
                 if verbose:
                     print(('Skipping instance %s because its group "%s" '
@@ -174,7 +167,7 @@ def list_instances(show=1, name=None, group=None, release=None, except_release=N
             if except_release and release == except_release:
                 continue
             if verbose:
-                print('Adding instance %s (%s).' % (name, instance.public_dns_name or instance.ip_address))
+                print('Adding instance %s (%s).' % (name, instance.public_dns_name or instance.public_ip_address))
             data.setdefault(name, type(env)())
             data[name]['id'] = instance.id
             data[name]['public_dns_name'] = instance.public_dns_name or instance.ip_address
@@ -216,12 +209,12 @@ def get_ec2_security_group_id(name=None, verbose=0):
     verbose = int(verbose)
 
     group_id = None
-    conn = get_ec2_connection()
-    groups = conn.get_all_security_groups()
+    ec2 = get_ec2_connection()
+    groups = ec2.security_groups.all()
     for group in groups:
         if verbose:
-            print('group:', group.name, group.id)
-        if group.name == name:
+            print('group:', group.group_name, group.id)
+        if group.group_name == name:
             group_id = group.id
 
     # Otherwise try the local cache.
@@ -239,6 +232,8 @@ def get_or_create_ec2_security_groups(names=None, verbose=1):
     """
     Creates a security group opening 22, 80 and 443
     """
+    raise Exception('This function currently does not work (needs porting to boto3).')
+
     verbose = int(verbose)
 
     if verbose:
@@ -246,7 +241,7 @@ def get_or_create_ec2_security_groups(names=None, verbose=1):
 
     conn = get_ec2_connection()
 
-    if isinstance(names, six.string_types):
+    if isinstance(names, str):
         names = names.split(',')
     names = names or env.vm_ec2_selected_security_groups
     if verbose:
@@ -261,9 +256,9 @@ def get_or_create_ec2_security_groups(names=None, verbose=1):
             #group = conn.get_all_security_groups(groupnames=[name])[0]
             # Note, groups in a VPC can't be referred to by name?
             group = conn.get_all_security_groups(group_ids=[group_id])[0]
-        except boto.exception.EC2ResponseError as e:
+        except botocore.exceptions.ClientError as error:
             if verbose:
-                print(e)
+                print(error)
             group = get_ec2_connection().create_security_group(
                 name,
                 name,
@@ -342,15 +337,23 @@ def get_or_create_ec2_key_pair(name=None, verbose=1):
     verbose = int(verbose)
     name = name or env.vm_ec2_keypair_name
     pem_path = 'roles/%s/%s.pem' % (env.ROLE, name)
-    conn = get_ec2_connection()
-    kp = conn.get_key_pair(name)
+    ec2_client = boto3.client(
+        'ec2',
+        aws_access_key_id=env.vm_ec2_aws_access_key_id,
+        aws_secret_access_key=env.vm_ec2_aws_secret_access_key,
+        region_name=env.vm_ec2_region
+    )
+    response = ec2_client.describe_key_pairs(KeyNames=[name])
+    key_pairs = response.get('KeyPairs', [])
+    kp = key_pairs[0] if key_pairs else None
     if kp:
         print('Key pair %s already exists.' % name)
     else:
         # Note, we only get the private key during creation.
         # If we don't save it here, it's lost forever.
-        kp = conn.create_key_pair(name)
-        open(pem_path, 'wb').write(kp.material)
+        response = ec2_client.create_key_pair(KeyName=name)
+        key_material = response['KeyMaterial']
+        open(pem_path, 'wb').write(key_material)
         os.system('chmod 600 %s' % pem_path)
         print('Key pair %s created.' % name)
     #return kp
@@ -358,11 +361,11 @@ def get_or_create_ec2_key_pair(name=None, verbose=1):
 
 @task_or_dryrun
 def list_security_groups():
-    conn = get_ec2_connection()
-    sgs = conn.get_all_security_groups()
+    ec2 = get_ec2_connection()
+    sgs = ec2.security_groups.all()
     print('Id,Name,Number of Instances')
-    for sg in sorted(sgs, key=lambda o: o.name):
-        print('%s,%s,%s' % (sg.id, sg.name, len(sg.instances())))
+    for sg in sorted(sgs, key=lambda o: o.group_name):
+        print('%s,%s' % (sg.id, sg.group_name))
 
 @task_or_dryrun
 def exists(name=None, group=None, release=None, except_release=None, verbose=1):
@@ -391,7 +394,12 @@ def get_name():
     if env.vm_type == EC2:
         for instance in get_all_running_ec2_instances():
             if env.host_string == instance.public_dns_name:
-                name = instance.tags.get(env.vm_name_tag)
+                for tag in instance.tags:
+                    if tag['Key'] == env.vm_name_tag:
+                        name = tag['Value']
+                        break
+                else:
+                    name = None
                 return name
     else:
         raise NotImplementedError

@@ -1,17 +1,11 @@
 import time
 
-import six
+import boto3
 
 from burlap.constants import *
 from burlap import Satchel
 from burlap.decorators import task
 
-def get_boto():
-    try:
-        import boto
-    except ImportError:
-        boto = None
-    return boto
 
 class CloudfrontSatchel(Satchel):
 
@@ -22,7 +16,9 @@ class CloudfrontSatchel(Satchel):
 
     @task
     def get_or_create_distribution(self, s3_bucket_name):
-        assert isinstance(s3_bucket_name, six.string_types)
+        raise Exception('This function currently does not work (needs porting to boto3).')
+
+        assert isinstance(s3_bucket_name, str)
         boto = get_boto()
         origin_dns = '%s.s3.amazonaws.com' % s3_bucket_name
         if not self.dryrun:

@@ -7,8 +7,6 @@ try:
 except ImportError:
     from subprocess import getoutput
 
-import six
-
 
 class BaseTracker:
 
@@ -95,7 +93,7 @@ class SettingsTracker(BaseTracker):
     """
 
     def __init__(self, satchel, names=None, *args, **kwargs):
-        if isinstance(names, six.string_types):
+        if isinstance(names, str):
             names = names.replace(',', ' ').split(' ')
         names = names or []
         assert isinstance(names, (tuple, list, set))
