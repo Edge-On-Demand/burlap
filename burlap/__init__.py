@@ -62,7 +62,7 @@ except (ImportError, NameError) as exc:
     print(f'Unable to initialize debug: {exc}', file=sys.stderr)
     debug = None
 
-VERSION = (0, 9, 121)
+VERSION = (0, 9, 122)
 __version__ = '.'.join(map(str, VERSION))
 
 burlap_populate_stack = int(os.environ.get('BURLAP_POPULATE_STACK', 1))
