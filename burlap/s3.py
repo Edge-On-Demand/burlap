@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import json
+import time
 
 import boto3
 from fabric.api import runs_once
@@ -129,8 +130,17 @@ class S3Satchel(Satchel):
             if self.dryrun:
                 print('aws cloudfront create-invalidation --distribution-id=%s --paths=%s' % (target_dist['Id'], paths))
             else:
-                inval_req = cloudfront.create_invalidation_request(target_dist['Id'], paths)
-                print('Issue invalidation request %s.' % (inval_req,))
+                invalidation_response = cloudfront.create_invalidation(
+                    DistributionId=target_dist['Id'],
+                    InvalidationBatch={
+                        'Paths': {
+                            'Quantity': len(paths),
+                            'Items': paths
+                        },
+                        'CallerReference': str(int(time.time()))
+                    }
+                )
+                print('Issue invalidation response: %s.' % (invalidation_response,))
             i += 1000
 
     @task
