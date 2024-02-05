@@ -1,7 +1,8 @@
-import os
-import sys
-import re
 import json
+import logging
+import os
+import re
+import sys
 import time
 
 import boto3
@@ -12,6 +13,9 @@ from burlap import Satchel
 from burlap.decorators import task
 
 S3SYNC_PATH_PATTERN = r'(?:->)\s+([^\n]+)'
+
+logger = logging.getLogger(__name__)
+
 
 class S3Satchel(Satchel):
 
@@ -78,7 +82,7 @@ class S3Satchel(Satchel):
 
             r.env.remote_path = remote_path % r.genv
 
-            print('Syncing %s to %s...' % (r.env.local_path, r.env.remote_path))
+            logger.info('Syncing %s to %s...', r.env.local_path, r.env.remote_path)
 
             # Superior Python version.
             if force:
@@ -102,21 +106,17 @@ class S3Satchel(Satchel):
         # http://boto.readthedocs.org/en/latest/cloudfront_tut.html
         _settings = dj.get_settings()
         if not _settings.AWS_STATIC_BUCKET_NAME:
-            print('No static media bucket set.')
+            logger.info('No static media bucket set.')
             return
         if isinstance(paths, str):
             paths = paths.split(',')
         all_paths = list(map(str.strip, paths))
         i = 0
         while 1:
-            paths = all_paths[i:i+1000]
+            paths = all_paths[i:i + 1000]
             if not paths:
                 break
-            cloudfront = boto3.client(
-                'cloudfront',
-                aws_access_key_id=_settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=_settings.AWS_SECRET_ACCESS_KEY
-            )
+            cloudfront = boto3.client('cloudfront', aws_access_key_id=_settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=_settings.AWS_SECRET_ACCESS_KEY)
             distributions = cloudfront.list_distributions()
             target_dist = None
             for dist in distributions['DistributionList']['Items']:
@@ -126,9 +126,9 @@ class S3Satchel(Satchel):
                     break
             if not target_dist:
                 raise Exception(('Target distribution %s could not be found in the AWS account.') % (_settings.AWS_STATIC_BUCKET_NAME,))
-            print('Using distribution %s associated with origin %s.' % (target_dist['Id'], _settings.AWS_STATIC_BUCKET_NAME))
+            logger.info('Using distribution %s associated with origin %s.', target_dist['Id'], _settings.AWS_STATIC_BUCKET_NAME)
             if self.dryrun:
-                print('aws cloudfront create-invalidation --distribution-id=%s --paths=%s' % (target_dist['Id'], paths))
+                print('aws cloudfront create-invalidation --distribution-id={} --paths={}'.format(target_dist['Id'], paths))
             else:
                 invalidation_response = cloudfront.create_invalidation(
                     DistributionId=target_dist['Id'],
@@ -140,7 +140,7 @@ class S3Satchel(Satchel):
                         'CallerReference': str(int(time.time()))
                     }
                 )
-                print('Issue invalidation response: %s.' % (invalidation_response,))
+                logger.info('Issue invalidation response: %s.', invalidation_response)
             i += 1000
 
     @task
@@ -155,11 +155,7 @@ class S3Satchel(Satchel):
         if self.dryrun:
             print('boto.connect_s3().create_bucket(%s)' % repr(name))
         else:
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=self.genv.aws_access_key_id,
-                aws_secret_access_key=self.genv.aws_secret_access_key
-            )
+            s3_client = boto3.client('s3', aws_access_key_id=self.genv.aws_access_key_id, aws_secret_access_key=self.genv.aws_secret_access_key)
             return s3_client.create_bucket(Bucket=name)
 
     @task
@@ -191,11 +187,12 @@ class S3Satchel(Satchel):
         print()
         print('name,bytes')
         for name in sorted(sizes):
-            print('%s,%s' % (name, sizes[name]))
+            print(f'{name},{sizes[name]}')
         print('all,%s' % total_size_bytes)
 
     @task(precursors=['packager'])
     def configure(self, *args, **kwargs):
         pass
+
 
 s3 = S3Satchel()
