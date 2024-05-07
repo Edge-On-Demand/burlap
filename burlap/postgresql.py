@@ -17,6 +17,7 @@ from burlap.decorators import task
 POSTGIS = 'postgis'
 POSTGRESQL = 'postgresql'
 
+
 def _run_as_pg(command):
     """
     Run command as 'postgres' user
@@ -29,15 +30,12 @@ def user_exists(name):
     """
     Check if a PostgreSQL user exists.
     """
-    with settings(hide('running', 'stdout', 'stderr', 'warnings'),
-                  warn_only=True):
+    with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
         res = _run_as_pg('''psql -t -A -c "SELECT COUNT(*) FROM pg_user WHERE usename = '%(name)s';"''' % locals())
     return (res == "1")
 
 
-def create_user(name, password, superuser=False, createdb=False,
-                createrole=False, inherit=True, login=True,
-                connection_limit=None, encrypted_password=False):
+def create_user(name, password, superuser=False, createdb=False, createrole=False, inherit=True, login=True, connection_limit=None, encrypted_password=False):
     """
     Create a PostgreSQL user.
 
@@ -64,7 +62,7 @@ def create_user(name, password, superuser=False, createdb=False,
     if connection_limit is not None:
         options.append('CONNECTION LIMIT %d' % connection_limit)
     password_type = 'ENCRYPTED' if encrypted_password else 'UNENCRYPTED'
-    options.append("%s PASSWORD '%s'" % (password_type, password))
+    options.append(f"{password_type} PASSWORD '{password}'")
     options = ' '.join(options)
     _run_as_pg('''psql -c "CREATE USER %(name)s %(options)s;"''' % locals())
 
@@ -89,13 +87,11 @@ def database_exists(name):
     """
     Check if a PostgreSQL database exists.
     """
-    with settings(hide('running', 'stdout', 'stderr', 'warnings'),
-                  warn_only=True):
+    with settings(hide('running', 'stdout', 'stderr', 'warnings'), warn_only=True):
         return _run_as_pg('''psql -d %(name)s -c ""''' % locals()).succeeded
 
 
-def create_database(name, owner, template='template0', encoding='UTF8',
-                    locale='en_US.UTF-8'):
+def create_database(name, owner, template='template0', encoding='UTF8', locale='en_US.UTF-8'):
     """
     Create a PostgreSQL database.
 
@@ -108,9 +104,11 @@ def create_database(name, owner, template='template0', encoding='UTF8',
             burlap.postgres.create_database('myapp', owner='dbuser')
 
     """
-    _run_as_pg('''createdb --owner %(owner)s --template %(template)s \
+    _run_as_pg(
+        '''createdb --owner %(owner)s --template %(template)s \
                   --encoding=%(encoding)s --lc-ctype=%(locale)s \
-                  --lc-collate=%(locale)s %(name)s''' % locals())
+                  --lc-collate=%(locale)s %(name)s''' % locals()
+    )
 
 
 def create_schema(name, database, owner=None):
@@ -158,7 +156,14 @@ class PostgreSQLSatchel(DatabaseSatchel):
             'gunzip < {remote_dump_fn} | pg_restore -U {db_root_username} --host={db_host} --format=c --clean '
             '--if-exists --schema=public --dbname={db_name}'
         )
+
+        # If this is a list, it's used for all databases.
+        # If this is a dictionary, the key represents a name referenced in load_commands_router.
         self.env.load_commands = [self.env.load_command]
+
+        # Maps database name to a load_commands key.
+        # Used to lookup the commands to run during a load operation for that database.
+        self.env.load_commands_router = {} # {database name: named load command sequence}
 
         self.env.createlangs = ['plpgsql'] # plpythonu
         self.env.postgres_user = 'postgres'
@@ -188,22 +193,22 @@ class PostgreSQLSatchel(DatabaseSatchel):
         self.env.apt_key = 'https://www.postgresql.org/media/keys/ACCC4CF8.asc'
 
         self.env.service_commands = {
-            START:{
+            START: {
                 UBUNTU: 'service postgresql start',
             },
-            STOP:{
+            STOP: {
                 UBUNTU: 'service postgresql stop',
             },
-            ENABLE:{
+            ENABLE: {
                 UBUNTU: 'update-rc.d postgresql defaults',
             },
-            DISABLE:{
+            DISABLE: {
                 UBUNTU: 'update-rc.d -f postgresql remove',
             },
-            RESTART:{
+            RESTART: {
                 UBUNTU: 'service postgresql restart',
             },
-            STATUS:{
+            STATUS: {
                 UBUNTU: 'service postgresql status',
             },
         }
@@ -217,22 +222,30 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 if ver.release == '16.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
                 if ver.release == '18.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
                 if ver.release == '20.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
                 if ver.release == '22.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
         raise NotImplementedError
 
@@ -261,10 +274,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
             r.env.shell_username = r.env.db_user
             r.env.shell_password = r.env.db_password
 
-        r.append(
-            '{db_host}:{port}:*:{shell_username}:{shell_password}',
-            r.env.pgpass_path,
-            use_sudo=use_sudo)
+        r.append('{db_host}:{port}:*:{shell_username}:{shell_password}', r.env.pgpass_path, use_sudo=use_sudo)
 
     @task
     def dumpload(self, site=None, role=None):
@@ -283,10 +293,12 @@ class PostgreSQLSatchel(DatabaseSatchel):
             downloaded.
         """
         r = self.database_renderer(site=site, role=role)
-        r.run('pg_dump -c --host={host_string} --username={db_user} '
+        r.run(
+            'pg_dump -c --host={host_string} --username={db_user} '
             '--blobs --format=c {db_name} -n public | '
             'pg_restore -U {db_postgresql_postgres_user} --create '
-            '--dbname={db_name}')
+            '--dbname={db_name}'
+        )
 
     @task
     def drop_views(self, name=None, site=None):
@@ -294,24 +306,6 @@ class PostgreSQLSatchel(DatabaseSatchel):
         Drops all views.
         """
         raise NotImplementedError
-    #        SELECT 'DROP VIEW ' || table_name || ';'
-    #        FROM information_schema.views
-    #        WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-    #        AND table_name !~ '^pg_';
-            # http://stackoverflow.com/questions/13643831/drop-all-views-postgresql
-    #        DO$$
-    #        BEGIN
-    #
-    #        EXECUTE (
-    #           SELECT string_agg('DROP VIEW ' || t.oid::regclass || ';', ' ')  -- CASCADE?
-    #           FROM   pg_class t
-    #           JOIN   pg_namespace n ON n.oid = t.relnamespace
-    #           WHERE  t.relkind = 'v'
-    #           AND    n.nspname = 'my_messed_up_schema'
-    #           );
-    #
-    #        END
-    #        $$
 
     @task
     def exists(self, name='default', site=None, use_root=False):
@@ -334,24 +328,19 @@ class PostgreSQLSatchel(DatabaseSatchel):
         if r.env.db_password:
             self.write_pgpass(name=name, root=use_root)
 
-        ret = r.run(
-            'psql --username={db_user} --host={db_host} -l | grep -v test_ | grep {db_name} | wc -l', ignore_errors=True
-        )
+        ret = r.run('psql --username={db_user} --host={db_host} -l | grep -v test_ | grep {db_name} | wc -l', ignore_errors=True)
         if ret is not None:
             if 'password authentication failed' in ret:
                 ret = False
             else:
                 ret = int(ret.split('\n')[-1]) >= 1
 
-            print('%s database on site %s %s exist' % (r.env.db_name, self.genv.SITE, 'DOES' if ret else 'DOES NOT'))
+            print('{} database on site {} {} exist'.format(r.env.db_name, self.genv.SITE, 'DOES' if ret else 'DOES NOT'))
 
         return ret
 
     @task
-    def execute(
-        self, sql, name='default', site=None, as_db_root_user=False, ignore_errors=False, no_db=False, no_pager=False,
-        timeout=None, **kwargs
-    ):
+    def execute(self, sql, name='default', site=None, as_db_root_user=False, ignore_errors=False, no_db=False, no_pager=False, timeout=None, **kwargs):
         """
         Run SQL command with psql.
 
@@ -378,17 +367,22 @@ class PostgreSQLSatchel(DatabaseSatchel):
             # Run locally as db root user with sudo -U, relying on pg_hba.conf or other Postgres auth
             ret = r.sudo(
                 'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
-                user=r.env.postgres_user, ignore_errors=ignore_errors, timeout=timeout)
+                user=r.env.postgres_user,
+                ignore_errors=ignore_errors,
+                timeout=timeout
+            )
         elif as_db_root_user:
             # Run on remote database as db root user, relying on .pgpass or other Postgres auth
             ret = r.run(
                 'psql --user={db_root_username} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
-                ignore_errors=ignore_errors, timeout=timeout)
+                ignore_errors=ignore_errors,
+                timeout=timeout
+            )
         else:
             # Run as normal db user, relying on .pgpass or other Postgres auth
             ret = r.run(
-                'psql --user={db_user} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"',
-                ignore_errors=ignore_errors, timeout=timeout)
+                'psql --user={db_user} --no-password --host={db_host} {dbname_arg} {pager_arg} --command="{sql}"', ignore_errors=ignore_errors, timeout=timeout
+            )
 
         return ret
 
@@ -412,9 +406,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
 
         # Create role/user.
         r.pc('Creating user...')
-        self.execute(
-            "CREATE USER {db_user} WITH PASSWORD '{db_password}';",
-            name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
+        self.execute("CREATE USER {db_user} WITH PASSWORD '{db_password}';", name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
         # Grant user role to root role (prevents "must be member of role <db_user>" errors in RDS)
         self.execute("GRANT {db_user} TO {db_root_username};", name=name, site=site, as_db_root_user=True, no_db=True)
 
@@ -422,7 +414,12 @@ class PostgreSQLSatchel(DatabaseSatchel):
         r.pc('Creating database...')
         ret = self.execute(
             "CREATE DATABASE {db_name} WITH OWNER={db_user} ENCODING='{encoding}' LC_CTYPE='{locale}' LC_COLLATE='{locale}';",
-            name=name, site=site, as_db_root_user=True, ignore_errors=True, no_db=True)
+            name=name,
+            site=site,
+            as_db_root_user=True,
+            ignore_errors=True,
+            no_db=True
+        )
         if isinstance(ret, str) and 'ERROR:' in ret and 'already exists' not in ret:
             raise Exception('Error creating database: %s' % ret)
 
@@ -433,7 +430,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
             self.execute(
                 "CREATE SCHEMA IF NOT EXISTS {db_schema}; "
                 "GRANT ALL PRIVILEGES ON SCHEMA {db_schema} to {db_user}; "
-                "ALTER ROLE {db_user} SET search_path TO {db_schema};", name=name, site=site, as_db_root_user=True)
+                "ALTER ROLE {db_user} SET search_path TO {db_schema};",
+                name=name,
+                site=site,
+                as_db_root_user=True
+            )
 
         r.pc('Enabling plpgsql on database...')
         r.run('createlang -U postgres plpgsql {db_name} || true', ignore_errors=True)
@@ -470,7 +471,12 @@ class PostgreSQLSatchel(DatabaseSatchel):
         self.execute(
             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{db_name}' "
             "AND {usename_condition} AND application_name != 'psql';",
-            name=name, site=site, as_db_root_user=True, ignore_errors=True, timeout=10)
+            name=name,
+            site=site,
+            as_db_root_user=True,
+            ignore_errors=True,
+            timeout=10
+        )
 
     @task
     #@runs_once Interferes with global methods that want to load multiple databases.
@@ -543,13 +549,22 @@ class PostgreSQLSatchel(DatabaseSatchel):
         if not r.env.schema_mt:
             self.execute(
                 "REASSIGN OWNED BY {db_user} TO {db_root_username}; "
-                "DROP OWNED BY {db_user} CASCADE;", name=name, site=site, as_db_root_user=True, ignore_errors=True)
+                "DROP OWNED BY {db_user} CASCADE;",
+                name=name,
+                site=site,
+                as_db_root_user=True,
+                ignore_errors=True
+            )
 
         # Create db user and assign privileges as appropriate, but don't allow connections yet,
         # as they could interfere with pg_restore.
         self.execute(
             "DROP USER IF EXISTS {db_user}; "
-            "CREATE USER {db_user} WITH PASSWORD '{db_password}' CONNECTION LIMIT 0;", name=name, site=site, as_db_root_user=True)
+            "CREATE USER {db_user} WITH PASSWORD '{db_password}' CONNECTION LIMIT 0;",
+            name=name,
+            site=site,
+            as_db_root_user=True
+        )
         if not r.env.schema_mt:
             self.execute("GRANT ALL PRIVILEGES ON DATABASE {db_name} to {db_user};", name=name, site=site, as_db_root_user=True)
             for createlang in r.env.createlangs:
@@ -561,11 +576,24 @@ class PostgreSQLSatchel(DatabaseSatchel):
             self.execute(
                 "CREATE SCHEMA IF NOT EXISTS {db_schema}; "
                 "GRANT ALL PRIVILEGES ON SCHEMA {db_schema} to {db_user}; "
-                "ALTER ROLE {db_user} SET search_path TO {db_schema};", name=name, site=site, as_db_root_user=True)
+                "ALTER ROLE {db_user} SET search_path TO {db_schema};",
+                name=name,
+                site=site,
+                as_db_root_user=True
+            )
 
         if not prep_only:
             is_local = r.env.db_host in {'localhost', '127.0.0.1'}
-            for load_command in r.env.load_commands:
+            if isinstance(r.env.load_commands, (list, tuple)):
+                # Use legacy simply list of load commands.
+                commands = r.env.load_commands
+            else:
+                # Otherwise, lookup database name-specific load commands.
+                assert isinstance(r.env.load_commands, dict), \
+                    f'Invalid load_command sequence: {type(r.env.load_commands)}'
+                load_commands_key = r.env.load_commands_router.get(name, 'default')
+                commands = r.env.load_commands[load_commands_key]
+            for load_command in commands:
                 if is_local:
                     # Load command needs to be run as postgres user if database is hosted locally.
                     r.sudo(load_command, user=r.env.postgres_user)
@@ -575,6 +603,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
         # Allow connections for the user, now that restoration is complete.
         # This won't run if the load fails, but that may be a good thing, as we don't want users to connect to or modify
         # a potentially corrupted schema.
+        self.execute("ALTER USER {db_user} CONNECTION LIMIT -1;", name=name, site=site, as_db_root_user=True)
+
+    @task
+    def reset_connection_limit(self, name=None, site=None):
+        site = site or self.genv.SITE
         self.execute("ALTER USER {db_user} CONNECTION LIMIT -1;", name=name, site=site, as_db_root_user=True)
 
     @task
@@ -613,7 +646,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
                 burlap.postgres.drop_database('myapp')
 
         """
-        self.sudo('dropdb %s' % (name,), user='postgres', ignore_errors=True)
+        self.sudo(f'dropdb {name}', user='postgres', ignore_errors=True)
 
     @task
     def version(self):
@@ -646,7 +679,7 @@ class PostgreSQLSatchel(DatabaseSatchel):
     def write_pg_hba_conf(self):
         r = self.local_renderer
         if 'pg_version' not in r.env:
-            r.env.pg_version = self.version()# or r.env.default_version
+            r.env.pg_version = self.version() # or r.env.default_version
         r.pc('Writing pg_hba.conf...')
         r.sudo('cp /etc/postgresql/{pg_version}/main/pg_hba.conf /etc/postgresql/{pg_version}/main/pg_hba.conf.$(date +%Y%m%d%H%M).bak')
         fn = self.render_to_file('postgresql/pg_hba.template.conf')
@@ -672,11 +705,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
         if r.env.apt_repo_enabled:
             self.configure_apt_repository()
 
-        r.env.pg_version = self.version()# or r.env.default_version
+        r.env.pg_version = self.version() # or r.env.default_version
 
         self.write_pg_hba_conf()
 
-#         r.pc('Backing up PostgreSQL configuration files...')
+        #         r.pc('Backing up PostgreSQL configuration files...')
         r.sudo('cp /etc/postgresql/{pg_version}/main/postgresql.conf /etc/postgresql/{pg_version}/main/postgresql.conf.$(date +%Y%m%d%H%M).bak')
         r.pc('Enabling auto-vacuuming...')
         r.sed(
@@ -726,28 +759,37 @@ class PostgreSQLClientSatchel(Satchel):
                 if ver.release == '16.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
                 if ver.release == '18.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
                 if ver.release == '20.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
                 if ver.release == '22.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main'],
-                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc',],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
                     }
         raise NotImplementedError
 
     @task(precursors=['packager'])
     def configure(self, *args, **kwargs):
         pass
+
 
 postgresql = PostgreSQLSatchel()
 PostgreSQLClientSatchel()
