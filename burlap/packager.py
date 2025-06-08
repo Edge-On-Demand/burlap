@@ -440,12 +440,9 @@ class PackagerSatchel(Satchel):
             if self.env.do_reboots:
                 self.reboot(wait=300, timeout=60)
 
-        try:
-            self.install_repositories(service=service, **kwargs)
-            self.install_required(type=SYSTEM, service=service, **kwargs)
-            self.install_custom(**kwargs)
-        finally:
-            self.uninstall_blacklisted()
+        self.install_repositories(service=service, **kwargs)
+        self.install_required(type=SYSTEM, service=service, **kwargs)
+        self.install_custom(**kwargs)
 
 
 class UbuntuMultiverseSatchel(Satchel):
