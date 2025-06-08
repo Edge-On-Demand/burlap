@@ -247,6 +247,13 @@ class PostgreSQLSatchel(DatabaseSatchel):
                             'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
                         ],
                     }
+                if ver.release == '24.04':
+                    return {
+                        APT: ['deb http://apt.postgresql.org/pub/repos/apt/ noble-pgdg main'],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
+                    }
         raise NotImplementedError
 
     @task
@@ -780,6 +787,13 @@ class PostgreSQLClientSatchel(Satchel):
                 if ver.release == '22.04':
                     return {
                         APT: ['deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main'],
+                        APT_KEY: [
+                            'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
+                        ],
+                    }
+                if ver.release == '24.04':
+                    return {
+                        APT: ['deb http://apt.postgresql.org/pub/repos/apt/ noble-pgdg main'],
                         APT_KEY: [
                             'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
                         ],
