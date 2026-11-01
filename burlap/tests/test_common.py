@@ -12,6 +12,7 @@ import tempfile
 import unittest
 import getpass
 from pprint import pprint
+from types import SimpleNamespace
 
 from fabric.api import runs_once
 
@@ -20,8 +21,26 @@ from burlap.common import CMD_VAR_REGEX, CMD_ESCAPED_VAR_REGEX, shellquote, all_
 from burlap.decorators import task
 from burlap.tests.base import TestCase
 from burlap.exceptions import SatchelDoesNotExist
+from burlap.constants import LINUX, UBUNTU
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+
+
+class PackageSelectionTests(unittest.TestCase):
+
+    def test_release_specific_packages_take_precedence(self):
+        satchel = SimpleNamespace(
+            os_version=SimpleNamespace(type=LINUX, distro=UBUNTU, release='26.04'),
+            required_system_packages={},
+            packager_system_packages={
+                UBUNTU: ['ntpdate', 'ntp'],
+                (UBUNTU, '26.04'): ['ntpsec-ntpdate', 'ntpsec'],
+            },
+            vprint=lambda *args: None,
+        )
+        self.assertEqual(Satchel.get_package_list(satchel), ['ntpsec-ntpdate', 'ntpsec'])
+        satchel.os_version.release = '22.04'
+        self.assertEqual(Satchel.get_package_list(satchel), ['ntpdate', 'ntp'])
 
 
 class _TestSatchel(Satchel):

@@ -22,6 +22,7 @@ class NTPClientSatchel(ServiceSatchel):
             (UBUNTU, '12.04'): ['ntpdate', 'ntp'],
             (UBUNTU, '14.04'): ['ntpdate', 'ntp'],
             (UBUNTU, '16.04'): ['ntpdate', 'ntp'],
+            (UBUNTU, '26.04'): ['ntpsec-ntpdate', 'ntpsec'],
             DEBIAN: ['ntpdate', 'ntp'],
         }
 
@@ -39,10 +40,12 @@ class NTPClientSatchel(ServiceSatchel):
             },
             DISABLE:{
                 UBUNTU: 'update-rc.d -f ntp remove',
+                (UBUNTU, '26.04'): 'systemctl disable ntpsec',
                 DEBIAN: 'update-rc.d ntp disable',
             },
             ENABLE:{
                 UBUNTU: 'update-rc.d ntp defaults',
+                (UBUNTU, '26.04'): 'systemctl enable ntpsec',
                 DEBIAN: 'update-rc.d ntp enable',
             },
             RESTART:{

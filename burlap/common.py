@@ -1461,6 +1461,8 @@ class Satchel:
                     package_list = req_packages[pattern]
                     found = True
                     break
+            if found:
+                break
         if not found:
             print(f'Warning: No operating system pattern found for {os_version}')
         self.vprint('package_list:', package_list)
