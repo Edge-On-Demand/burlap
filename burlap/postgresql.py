@@ -254,6 +254,11 @@ class PostgreSQLSatchel(DatabaseSatchel):
                             'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
                         ],
                     }
+                if ver.release == '26.04':
+                    return {
+                        APT: ['deb https://apt.postgresql.org/pub/repos/apt/ resolute-pgdg main'],
+                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc'],
+                    }
         raise NotImplementedError
 
     @task
@@ -797,6 +802,11 @@ class PostgreSQLClientSatchel(Satchel):
                         APT_KEY: [
                             'https://www.postgresql.org/media/keys/ACCC4CF8.asc',
                         ],
+                    }
+                if ver.release == '26.04':
+                    return {
+                        APT: ['deb https://apt.postgresql.org/pub/repos/apt/ resolute-pgdg main'],
+                        APT_KEY: ['https://www.postgresql.org/media/keys/ACCC4CF8.asc'],
                     }
         raise NotImplementedError
 

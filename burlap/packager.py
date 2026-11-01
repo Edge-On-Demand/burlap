@@ -2,6 +2,7 @@ import os
 import logging
 import tempfile
 from pprint import pprint
+from urllib.parse import urlsplit
 
 from burlap import Satchel
 from burlap.constants import *
@@ -252,7 +253,9 @@ class PackagerSatchel(Satchel):
             else:
                 assert isinstance(parts, str)
                 r.env.apt_key_url = parts
-                r.sudo('wget {apt_key_url} -O - | apt-key add -')
+                r.env.apt_key_filename = os.path.splitext(os.path.basename(urlsplit(parts).path))[0] + '.gpg'
+                r.sudo("wget '{apt_key_url}' -O - | gpg --batch --yes --dearmor -o '/etc/apt/trusted.gpg.d/{apt_key_filename}'")
+                r.sudo("chmod 644 '/etc/apt/trusted.gpg.d/{apt_key_filename}'")
 
         r.pc('Installing repositories.')
         for repo_type in [APT]:
